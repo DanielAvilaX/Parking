@@ -3,9 +3,9 @@ import { qs } from "../core/dom.js";
 import { initTheme } from "../core/theme.js";
 import { escapeHtml, matchesText, serializeError, toFriendlyDate } from "../core/utils.js";
 import { requireRole } from "../services/auth.service.js";
-import { listAllRequests, setRequestStatus } from "../services/request.service.js";
+import { listAllRequests, removeRequest, setRequestStatus } from "../services/request.service.js";
 import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
-import { openFormModal } from "../ui/modal.js";
+import { confirmModal, openFormModal } from "../ui/modal.js";
 import { showToast } from "../ui/notifications.js";
 
 let requestState = [];
@@ -42,6 +42,7 @@ function renderRequestCard(request) {
       <div class="action-row">
         <button class="button" type="button" data-action="approve" data-request-id="${request.id}">Aprobar</button>
         <button class="button-danger" type="button" data-action="reject" data-request-id="${request.id}">Rechazar</button>
+        <button class="button-danger" type="button" data-action="delete" data-request-id="${request.id}">Eliminar</button>
       </div>
     </article>
   `;
@@ -109,7 +110,7 @@ async function initAdminRequestsPage() {
     renderRequestList();
   }
 
-  qs("#request-list").addEventListener("click", (event) => {
+  qs("#request-list").addEventListener("click", async (event) => {
     const action = event.target.closest("[data-action]")?.dataset.action;
     const requestId = event.target.closest("[data-request-id]")?.dataset.requestId || event.target.dataset.requestId;
     if (!action || !requestId) {
@@ -122,6 +123,28 @@ async function initAdminRequestsPage() {
 
     if (action === "reject") {
       openResolutionModal(requestId, REQUEST_STATUS.REJECTED, reload);
+    }
+
+    if (action === "delete") {
+      const request = requestState.find((item) => item.id === requestId);
+      const confirmed = await confirmModal({
+        title: "Eliminar solicitud",
+        description: `Se eliminará la solicitud asociada a la placa ${request?.plate_display || "sin placa"}.`,
+        confirmText: "Eliminar solicitud",
+        danger: true,
+      });
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await removeRequest(requestId);
+        showToast("Solicitud eliminada correctamente.", "success");
+        await reload();
+      } catch (error) {
+        showToast(serializeError(error), "error");
+      }
     }
   });
 
