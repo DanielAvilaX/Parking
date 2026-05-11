@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Registro de Vehículos Davinci</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/components.css" />
+    <link rel="stylesheet" href="/styles/pages.css" />
+  </head>
+  <body data-scene="login">
+    <main class="login-page">
+      <section class="login-hero">
+        <div class="login-hero__content">
+          <article class="login-copy">
+            <div class="login-logo">
+              <img src="/assets/logo-placeholder.svg" alt="Logo provisional del sistema" />
+            </div>
+            <div class="login-highlight">
+              <h1>Registro de Vehículos Davinci</h1>
+            </div>
+          </article>
+          <aside class="login-panel">
+            <div class="curtain-shell">
+              <div class="curtain-handle">
+                <button id="toggle-auth-panel" class="button curtain-handle__button" type="button">Iniciar sesión</button>
+              </div>
+              <div id="auth-curtain" class="curtain-panel">
+                <div class="curtain-panel__content">
+                  <section class="glass-card">
+                    <div class="page-heading">
+                      <h1>Acceso seguro</h1>
+                    </div>
+                    <form id="login-form" class="auth-form">
+                      <div class="field">
+                        <label for="login-email">Correo</label>
+                        <input id="login-email" name="email" type="email" autocomplete="email" required />
+                      </div>
+                      <div class="field">
+                        <label for="login-password">Contraseña</label>
+                        <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+                      </div>
+                      <button class="button button-wide" type="submit">Entrar</button>
+                    </form>
+                    <div class="login-meta">
+                      <button id="open-reset-panel" class="button-ghost" type="button">Recuperar contraseña</button>
+                    </div>
+                  </section>
+                  <section id="recovery-panel" class="glass-card" hidden>
+                    <div class="page-heading">
+                      <h1>Recuperación</h1>
+                      <p>Enviaremos un enlace al correo para restablecer la contraseña.</p>
+                    </div>
+                    <form id="reset-request-form" class="recovery-form">
+                      <div class="field">
+                        <label for="reset-email">Correo</label>
+                        <input id="reset-email" name="email" type="email" autocomplete="email" required />
+                      </div>
+                      <button class="button button-wide" type="submit">Enviar enlace</button>
+                    </form>
+                  </section>
+                  <section id="password-update-panel" class="glass-card" hidden>
+                    <div class="page-heading">
+                      <h1>Nueva contraseña</h1>
+                      <p>Completa este paso solo cuando vengas desde el enlace de recuperación.</p>
+                    </div>
+                    <form id="password-update-form" class="recovery-form">
+                      <div class="field">
+                        <label for="new-password">Nueva contraseña</label>
+                        <input id="new-password" name="password" type="password" autocomplete="new-password" required />
+                      </div>
+                      <button class="button button-wide" type="submit">Actualizar contraseña</button>
+                    </form>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <dialog id="app-modal" class="app-modal"></dialog>
+    <script type="module" src="/js/pages/login.page.js"></script>
+  </body>
+</html>
+

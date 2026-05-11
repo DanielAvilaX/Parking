@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Configuración | Registro de Vehículos Davinci</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/components.css" />
+    <link rel="stylesheet" href="/styles/pages.css" />
+  </head>
+  <body data-scene="settings">
+    <div id="app-shell" class="page-shell">
+      <main class="page-container page-grid page-grid--admin">
+        <section class="hero-card">
+          <div class="page-heading">
+            <h1>Configuración</h1>
+            <p>Gestiona el tema visual y, en caso de administrador, actualiza tus credenciales personales.</p>
+          </div>
+        </section>
+        <section class="settings-grid">
+          <article class="panel">
+            <div class="section-title">
+              <h2>Tema</h2>
+            </div>
+            <form id="theme-form" class="page-form">
+              <div class="field">
+                <label for="theme-preference">Preferencia</label>
+                <select id="theme-preference" name="theme">
+                  <option value="auto">Automático</option>
+                  <option value="light">Claro</option>
+                  <option value="dark">Oscuro</option>
+                </select>
+              </div>
+              <button class="button" type="submit">Guardar preferencia</button>
+            </form>
+          </article>
+          <article class="panel">
+            <div class="section-title">
+              <h2>Cuenta</h2>
+            </div>
+            <div id="account-settings-content" class="content-stack">
+              <p class="muted">Cargando permisos de la sesión actual...</p>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <dialog id="app-modal" class="app-modal"></dialog>
+    <script type="module" src="/js/pages/settings.page.js"></script>
+  </body>
+</html>

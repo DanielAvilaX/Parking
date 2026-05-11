@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Registrar residente | Registro de Vehículos Davinci</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/components.css" />
+    <link rel="stylesheet" href="/styles/pages.css" />
+  </head>
+  <body class="quick-page" data-scene="resident-form">
+    <div id="app-shell" class="page-shell">
+      <main class="page-grid--narrow content-stack">
+        <section class="hero-card">
+          <div class="page-heading">
+            <h1>Nuevo residente</h1>
+            <p>La placa consultada se autocompleta, pero puedes modificarla antes de guardar el registro.</p>
+          </div>
+        </section>
+        <section class="panel">
+          <form id="resident-form" class="page-form">
+            <div class="field-grid">
+              <div class="field">
+                <label for="resident-plate">Placa</label>
+                <input id="resident-plate" name="plate" type="text" maxlength="7" placeholder="AAA-000" required />
+              </div>
+              <div class="field">
+                <label for="resident-name">Nombre completo del propietario</label>
+                <input id="resident-name" name="fullName" type="text" required />
+              </div>
+            </div>
+
+            <section class="content-stack">
+              <div class="section-title">
+                <h2>Apartamentos</h2>
+                <button id="add-resident-apartment" class="button-ghost" type="button">Agregar apartamento</button>
+              </div>
+              <div id="resident-apartments" class="repeater"></div>
+              <div id="resident-existing-context" class="inline-note" hidden></div>
+            </section>
+
+            <section class="content-stack">
+              <div class="section-title">
+                <h2>Teléfonos</h2>
+                <button id="add-resident-phone" class="button-ghost" type="button">Agregar teléfono</button>
+              </div>
+              <div id="resident-phones" class="repeater"></div>
+              <p class="helper-text">Los teléfonos guardados aquí también se asociarán a los apartamentos seleccionados.</p>
+            </section>
+
+            <div class="action-row">
+              <button class="button" type="submit">Guardar residente</button>
+              <a class="button-ghost" href="/guard/index.html">Volver</a>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <dialog id="app-modal" class="app-modal"></dialog>
+    <script type="module" src="/js/pages/guard-register-resident.page.js"></script>
+  </body>
+</html>
+

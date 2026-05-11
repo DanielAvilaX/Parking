@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard | Registro de Vehículos Davinci</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/components.css" />
+    <link rel="stylesheet" href="/styles/pages.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+  </head>
+  <body data-scene="admin-dashboard">
+    <div id="app-shell" class="page-shell">
+      <main class="page-container page-grid page-grid--admin">
+        <section class="hero-card">
+          <div class="page-heading">
+            <h1>Métricas de visitantes</h1>
+            <p>Filtra por día o por rango para revisar ingresos, salidas, vehículos activos y alertas por salidas sin ingreso.</p>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="field-grid">
+            <div class="field">
+              <label for="dashboard-date-from">Desde</label>
+              <input id="dashboard-date-from" type="date" />
+            </div>
+            <div class="field">
+              <label for="dashboard-date-to">Hasta</label>
+              <input id="dashboard-date-to" type="date" />
+            </div>
+            <div class="field">
+              <label for="dashboard-granularity">Agrupación</label>
+              <select id="dashboard-granularity">
+                <option value="day">Por día</option>
+                <option value="range">Resumen del rango</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="dashboard-refresh" class="button button-wide" type="button">Actualizar métricas</button>
+            </div>
+          </div>
+        </section>
+        <section id="dashboard-metrics" class="grid-auto"></section>
+        <section class="split-card">
+          <article class="panel chart-card">
+            <div class="section-title">
+              <h2>Movimientos por día</h2>
+              <span class="helper-text">Ingresos y salidas</span>
+            </div>
+            <div class="chart-frame">
+              <canvas id="traffic-chart"></canvas>
+            </div>
+          </article>
+          <article class="panel chart-card">
+            <div class="section-title">
+              <h2>Estado actual</h2>
+              <span class="helper-text">Vehículos y alertas</span>
+            </div>
+            <div class="chart-frame">
+              <canvas id="status-chart"></canvas>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <dialog id="app-modal" class="app-modal"></dialog>
+    <script type="module" src="/js/pages/admin-dashboard.page.js"></script>
+  </body>
+</html>
+

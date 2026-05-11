@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Solicitudes | Registro de Vehículos Davinci</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/components.css" />
+    <link rel="stylesheet" href="/styles/pages.css" />
+  </head>
+  <body data-scene="admin-requests">
+    <div id="app-shell" class="page-shell">
+      <main class="page-container page-grid page-grid--admin">
+        <section class="hero-card">
+          <div class="page-heading">
+            <h1>Solicitudes y novedades</h1>
+            <p>El guarda puede registrar incidencias de datos y el administrador decide si quedan aprobadas o rechazadas.</p>
+          </div>
+        </section>
+        <section class="request-status-grid">
+          <article class="panel metric-card">
+            <div>
+              <h3>Pendientes</h3>
+              <p id="request-count-pending">0</p>
+            </div>
+            <span class="badge badge-warning">Revisión prioritaria</span>
+          </article>
+          <article class="panel metric-card">
+            <div>
+              <h3>Aprobadas</h3>
+              <p id="request-count-approved">0</p>
+            </div>
+            <span class="badge badge-success">Cambios aceptados</span>
+          </article>
+          <article class="panel metric-card">
+            <div>
+              <h3>Rechazadas</h3>
+              <p id="request-count-rejected">0</p>
+            </div>
+            <span class="badge badge-danger">No aplicadas</span>
+          </article>
+        </section>
+        <section class="panel">
+          <div class="field-grid">
+            <div class="field">
+              <label for="request-filter-status">Estado</label>
+              <select id="request-filter-status">
+                <option value="all">Todos</option>
+                <option value="pending">Pendientes</option>
+                <option value="approved">Aprobadas</option>
+                <option value="rejected">Rechazadas</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="request-filter-plate">Placa</label>
+              <input id="request-filter-plate" type="text" placeholder="AAA-000" />
+            </div>
+          </div>
+        </section>
+        <section id="request-list" class="record-list"></section>
+      </main>
+    </div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <dialog id="app-modal" class="app-modal"></dialog>
+    <script type="module" src="/js/pages/admin-requests.page.js"></script>
+  </body>
+</html>
+

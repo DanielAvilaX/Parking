@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portería | Registro de Vehículos Davinci</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/components.css" />
+    <link rel="stylesheet" href="/styles/pages.css" />
+  </head>
+  <body class="quick-page" data-scene="guard">
+    <div id="app-shell" class="page-shell">
+      <main class="page-container guard-layout content-stack">
+        <section class="hero-card guard-search-card">
+          <div class="page-heading">
+            <h1>Búsqueda operativa</h1>
+            <p>Consulta la placa, identifica si es residente o visitante y registra movimientos solo cuando aplique.</p>
+          </div>
+          <form id="guard-search-form" class="content-stack">
+            <div class="plate-field">
+              <label class="visually-hidden" for="plate-search">Placa</label>
+              <input id="plate-search" class="plate-field__input" name="plate" type="text" inputmode="text" autocomplete="off" maxlength="7" placeholder="AAA-000" required />
+            </div>
+            <div class="search-actions">
+              <button class="button button-wide" type="submit">Buscar placa</button>
+              <a class="button-ghost button-wide" href="/settings/index.html">Configuración</a>
+            </div>
+          </form>
+        </section>
+        <section id="search-result" class="panel" aria-live="polite">
+          <div class="empty-state">Ingresa una placa para comenzar la consulta.</div>
+        </section>
+      </main>
+    </div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <dialog id="app-modal" class="app-modal"></dialog>
+    <script type="module" src="/js/pages/guard-search.page.js"></script>
+  </body>
+</html>
+

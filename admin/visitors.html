@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visitantes | Registro de Vehículos Davinci</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/components.css" />
+    <link rel="stylesheet" href="/styles/pages.css" />
+  </head>
+  <body data-scene="admin-visitors">
+    <div id="app-shell" class="page-shell">
+      <main class="page-container page-grid page-grid--admin">
+        <section class="hero-card">
+          <div class="page-heading">
+            <h1>Histórico de visitantes</h1>
+            <p>Consulta placas, nombres registrados, apartamentos destino, movimientos abiertos y salidas sin ingreso previo.</p>
+          </div>
+        </section>
+        <section class="panel filters-panel">
+          <div class="field-grid">
+            <div class="field">
+              <label for="visitor-filter-plate">Placa</label>
+              <input id="visitor-filter-plate" type="text" placeholder="AAA-000" />
+            </div>
+            <div class="field">
+              <label for="visitor-filter-name">Persona anunciada</label>
+              <input id="visitor-filter-name" type="text" placeholder="Nombre del visitante" />
+            </div>
+            <div class="field">
+              <label for="visitor-filter-tower">Torre</label>
+              <select id="visitor-filter-tower"></select>
+            </div>
+            <div class="field">
+              <label for="visitor-filter-apartment">Apartamento</label>
+              <input id="visitor-filter-apartment" type="text" placeholder="Ej. 304" />
+            </div>
+            <div class="field">
+              <label for="visitor-filter-date-from">Desde</label>
+              <input id="visitor-filter-date-from" type="date" />
+            </div>
+            <div class="field">
+              <label for="visitor-filter-date-to">Hasta</label>
+              <input id="visitor-filter-date-to" type="date" />
+            </div>
+          </div>
+        </section>
+        <section id="visitor-admin-list" class="record-list"></section>
+      </main>
+    </div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <dialog id="app-modal" class="app-modal"></dialog>
+    <script type="module" src="/js/pages/admin-visitors.page.js"></script>
+  </body>
+</html>
+
