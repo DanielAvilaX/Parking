@@ -24,7 +24,7 @@ export function mountTopbar({ role, activeKey, subtitle }) {
     <div class="topbar__inner">
       <div class="brand">
         <div class="brand__mark">
-          <img src="/assets/logo-placeholder.svg" alt="Logo de ${runtimeConfig.siteName}" />
+          <img src="/assets/logo-placeholder.png" alt="Logo de ${runtimeConfig.siteName}" />
         </div>
         <div class="brand__copy">
           <h1>${runtimeConfig.siteName}</h1>
@@ -33,7 +33,6 @@ export function mountTopbar({ role, activeKey, subtitle }) {
       </div>
       <nav class="topbar__nav">${buildNavigation(role, activeKey)}</nav>
       <div class="topbar__actions">
-        <a class="button-ghost" href="${ROUTES.SETTINGS}">Configuración</a>
         <button id="logout-button" class="button" type="button">Cerrar sesión</button>
       </div>
     </div>
@@ -44,4 +43,3 @@ export function mountTopbar({ role, activeKey, subtitle }) {
     await logout();
   });
 }
-

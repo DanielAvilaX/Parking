@@ -3,7 +3,7 @@ import { qs, setButtonLoading } from "../core/dom.js";
 import { getStoredThemePreference, initTheme, saveThemePreference } from "../core/theme.js";
 import { escapeHtml, serializeError } from "../core/utils.js";
 import { getSessionProfile, requireRole, updateOwnCredentials } from "../services/auth.service.js";
-import { mountTopbar } from "../ui/layout.js";
+import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
 import { showToast } from "../ui/notifications.js";
 
 function renderAdminAccountForm(profile) {

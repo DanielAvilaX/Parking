@@ -10,7 +10,7 @@ import {
 } from "../core/utils.js";
 import { requireRole } from "../services/auth.service.js";
 import { registerVisitorVehicle, getApartmentResidentsContext } from "../services/visitor.service.js";
-import { mountTopbar } from "../ui/layout.js";
+import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
 import { showToast } from "../ui/notifications.js";
 
 async function initVisitorRegistrationPage() {

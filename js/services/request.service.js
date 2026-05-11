@@ -1,5 +1,5 @@
 import { canonicalizePlate, formatPlate } from "../core/utils.js";
-import { createRequest, listRequests, updateRequestStatus } from "../data/requests.repository.js";
+import { createRequest, deleteRequest, listRequests, updateRequestStatus } from "../data/requests.repository.js";
 
 export async function submitChangeRequest({
   plate,
@@ -29,3 +29,6 @@ export async function setRequestStatus(requestId, status, resolutionNote = "") {
   });
 }
 
+export async function removeRequest(requestId) {
+  return deleteRequest(requestId);
+}

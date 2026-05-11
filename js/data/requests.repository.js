@@ -31,3 +31,9 @@ export async function updateRequestStatus(requestId, payload) {
   );
 }
 
+export async function deleteRequest(requestId) {
+  const { error } = await supabase.from("change_requests").delete().eq("id", requestId);
+  if (error) {
+    throw error;
+  }
+}

@@ -220,7 +220,7 @@ Para recuperación de contraseña, Supabase debe conocer el dominio final desde 
 
 Puedes reemplazar los archivos dentro de [assets/README.md](/c:/Andres/Programacion/Parking/assets/README.md):
 
-- `logo-placeholder.svg`
+- `logo-placeholder.png`
 - `login-background-placeholder.svg`
 - `guard-background-placeholder.svg`
 
@@ -232,4 +232,3 @@ La interfaz ya trae animaciones y filtros para transición entre claro y oscuro.
 - Las solicitudes del guarda se manejan como un único módulo con estados `pending`, `approved` y `rejected`.
 - La sesión del guarda persiste entre aperturas porque usa almacenamiento persistente.
 - La sesión del administrador se conserva solo en sesión del navegador.
-

@@ -10,11 +10,29 @@ import {
 } from "../core/utils.js";
 import { requireRole } from "../services/auth.service.js";
 import { listResidentsDetailed, removeResident, updateResidentBundle } from "../services/resident.service.js";
-import { mountTopbar } from "../ui/layout.js";
+import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
 import { confirmModal, openFormModal } from "../ui/modal.js";
 import { showToast } from "../ui/notifications.js";
 
 let residentState = [];
+
+function renderSummaryList(values, emptyLabel) {
+  if (!values.length) {
+    return `<p>${escapeHtml(emptyLabel)}</p>`;
+  }
+
+  return `
+    <div class="content-stack">
+      ${values
+        .map(
+          (value) => `
+            <div class="badge">${escapeHtml(value)}</div>
+          `
+        )
+        .join("")}
+    </div>
+  `;
+}
 
 function parseLineList(value = "") {
   return value
@@ -55,15 +73,15 @@ function renderResidentCard(record) {
       <div class="summary-grid">
         <article class="summary-item">
           <h3>Placas</h3>
-          <p>${escapeHtml(record.vehicles.map((vehicle) => vehicle.plateDisplay).join(", ") || "Sin placas")}</p>
+          ${renderSummaryList(record.vehicles.map((vehicle) => vehicle.plateDisplay), "Sin placas")}
         </article>
         <article class="summary-item">
           <h3>Teléfonos</h3>
-          <p>${escapeHtml(record.phones.join(", ") || "Sin teléfonos")}</p>
+          ${renderSummaryList(record.phones, "Sin teléfonos")}
         </article>
         <article class="summary-item">
           <h3>Apartamentos</h3>
-          <p>${escapeHtml(record.apartments.map((apartment) => apartment.label).join(" · ") || "Sin apartamentos")}</p>
+          ${renderSummaryList(record.apartments.map((apartment) => apartment.label), "Sin apartamentos")}
         </article>
         <article class="summary-item">
           <h3>Visitantes históricos</h3>
@@ -286,4 +304,3 @@ async function initAdminResidentsPage() {
 }
 
 initAdminResidentsPage();
-

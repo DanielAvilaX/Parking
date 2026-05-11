@@ -7,9 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles/base.css" />
-    <link rel="stylesheet" href="/styles/components.css" />
-    <link rel="stylesheet" href="/styles/pages.css" />
+    <link rel="stylesheet" href="/styles/base.css?v=20260511" />
+    <link rel="stylesheet" href="/styles/components.css?v=20260511-logo-rect" />
+    <link rel="stylesheet" href="/styles/pages.css?v=20260511-logo-rect" />
   </head>
   <body data-scene="admin-visitors">
     <div id="app-shell" class="page-shell">
@@ -39,6 +39,14 @@
               <input id="visitor-filter-apartment" type="text" placeholder="Ej. 304" />
             </div>
             <div class="field">
+              <label for="visitor-filter-alerts">Alertas</label>
+              <select id="visitor-filter-alerts">
+                <option value="all">Todos los visitantes</option>
+                <option value="with-alerts">Solo con alertas</option>
+                <option value="without-alerts">Solo sin alertas</option>
+              </select>
+            </div>
+            <div class="field">
               <label for="visitor-filter-date-from">Desde</label>
               <input id="visitor-filter-date-from" type="date" />
             </div>
@@ -53,7 +61,6 @@
     </div>
     <div id="toast-root" class="toast-root" aria-live="polite"></div>
     <dialog id="app-modal" class="app-modal"></dialog>
-    <script type="module" src="/js/pages/admin-visitors.page.js"></script>
+    <script type="module" src="/js/pages/admin-visitors.page.js?v=20260511-alerts-2"></script>
   </body>
 </html>
-

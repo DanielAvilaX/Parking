@@ -4,7 +4,7 @@ import { initTheme } from "../core/theme.js";
 import { getRangeBounds, serializeError, toDateInputValue } from "../core/utils.js";
 import { requireRole } from "../services/auth.service.js";
 import { getDashboardMetrics } from "../services/dashboard.service.js";
-import { mountTopbar } from "../ui/layout.js";
+import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
 import { showToast } from "../ui/notifications.js";
 
 let trafficChart = null;
@@ -159,4 +159,3 @@ async function initAdminDashboardPage() {
 }
 
 initAdminDashboardPage();
-

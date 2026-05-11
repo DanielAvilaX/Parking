@@ -10,7 +10,7 @@ import {
 } from "../core/utils.js";
 import { requireRole } from "../services/auth.service.js";
 import { createResidentBundle, listResidentsForApartment } from "../services/resident.service.js";
-import { mountTopbar } from "../ui/layout.js";
+import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
 import { showToast } from "../ui/notifications.js";
 
 function createApartmentRow(index) {
@@ -195,4 +195,3 @@ async function initResidentRegistrationPage() {
 }
 
 initResidentRegistrationPage();
-

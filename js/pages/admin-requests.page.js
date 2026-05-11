@@ -4,7 +4,7 @@ import { initTheme } from "../core/theme.js";
 import { escapeHtml, matchesText, serializeError, toFriendlyDate } from "../core/utils.js";
 import { requireRole } from "../services/auth.service.js";
 import { listAllRequests, setRequestStatus } from "../services/request.service.js";
-import { mountTopbar } from "../ui/layout.js";
+import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
 import { openFormModal } from "../ui/modal.js";
 import { showToast } from "../ui/notifications.js";
 
@@ -136,4 +136,3 @@ async function initAdminRequestsPage() {
 }
 
 initAdminRequestsPage();
-

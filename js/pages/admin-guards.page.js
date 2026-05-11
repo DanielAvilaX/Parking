@@ -4,7 +4,7 @@ import { initTheme } from "../core/theme.js";
 import { escapeHtml, serializeError, toFriendlyDate } from "../core/utils.js";
 import { requireRole } from "../services/auth.service.js";
 import { changeGuardPassword, createGuard, listGuards, removeGuard, updateGuard } from "../services/guard-admin.service.js";
-import { mountTopbar } from "../ui/layout.js";
+import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
 import { confirmModal, openFormModal } from "../ui/modal.js";
 import { showToast } from "../ui/notifications.js";
 
@@ -177,4 +177,3 @@ async function initAdminGuardsPage() {
 }
 
 initAdminGuardsPage();
-

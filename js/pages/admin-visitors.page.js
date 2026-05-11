@@ -14,6 +14,7 @@ import {
   toFriendlyDate,
 } from "../core/utils.js";
 import { requireRole } from "../services/auth.service.js";
+import { listAllRequests, removeRequest, setRequestStatus } from "../services/request.service.js";
 import {
   listVisitorsDetailed,
   removeVisitor,
@@ -21,11 +22,83 @@ import {
   updateVisitorBundle,
   updateVisitorHistoryLog,
 } from "../services/visitor.service.js";
-import { mountTopbar } from "../ui/layout.js";
+import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
 import { confirmModal, openFormModal } from "../ui/modal.js";
 import { showToast } from "../ui/notifications.js";
 
 let visitorState = [];
+
+function getAlertCount(record) {
+  return record.history.filter((visit) => visit.entryMissing).length;
+}
+
+function renderRequestStatusBadge(request) {
+  if (request.status === "approved") {
+    return '<span class="badge badge-success">Aprobada</span>';
+  }
+
+  if (request.status === "rejected") {
+    return '<span class="badge badge-danger">Rechazada</span>';
+  }
+
+  return '<span class="badge badge-warning">Pendiente</span>';
+}
+
+function renderVisitorRequestsSection(record) {
+  return `
+    <article class="glass-card" data-request-section>
+      <div class="section-title">
+        <h3>Solicitudes para esta placa</h3>
+        <span class="helper-text">${record.requests.length} registro(s)</span>
+      </div>
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Detalle</th>
+                <th>Resolución</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                record.requests.length
+                  ? record.requests
+                      .map(
+                        (request) => `
+                          <tr data-request-id="${request.id}">
+                            <td>${escapeHtml(toFriendlyDate(request.created_at))}</td>
+                            <td>${renderRequestStatusBadge(request)}</td>
+                            <td>${escapeHtml(request.message)}</td>
+                            <td>
+                              <div class="action-row">
+                                <span>${escapeHtml(request.resolution_note || "Pendiente de revisión")}</span>
+                                ${
+                                  request.status === "pending"
+                                    ? `
+                                      <button class="button-ghost" type="button" data-action="approve-request" data-request-id="${request.id}">Aprobar</button>
+                                      <button class="button-danger" type="button" data-action="reject-request" data-request-id="${request.id}">Rechazar</button>
+                                    `
+                                    : ""
+                                }
+                                <button class="button-danger" type="button" data-action="delete-request" data-request-id="${request.id}">Eliminar</button>
+                              </div>
+                            </td>
+                          </tr>
+                        `
+                      )
+                      .join("")
+                  : '<tr><td colspan="4">No hay solicitudes registradas para esta placa.</td></tr>'
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </article>
+  `;
+}
 
 function renderTowerOptions() {
   return getTowerOptions().map((value) => `<option value="${value}">${value}</option>`).join("");
@@ -36,6 +109,8 @@ function renderApartmentOptions() {
 }
 
 function renderVisitorCard(record) {
+  const alertCount = getAlertCount(record);
+
   return `
     <article class="panel record-card" data-visitor-id="${record.id}">
       <div class="record-card__header">
@@ -45,6 +120,12 @@ function renderVisitorCard(record) {
         </div>
         <div class="action-row">
           <button class="button-ghost" type="button" data-action="toggle-details">Más información</button>
+          <button class="button-ghost" type="button" data-action="toggle-details" aria-label="Expandir o contraer detalles">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <button class="button-ghost" type="button" data-action="view-requests">Solicitudes ${record.requests.length ? `(${record.requests.length})` : ""}</button>
           <button class="button" type="button" data-action="edit">Editar</button>
           <button class="button-danger" type="button" data-action="delete">Eliminar</button>
         </div>
@@ -62,9 +143,13 @@ function renderVisitorCard(record) {
           <h3>Estado</h3>
           <p>${record.openVisit ? "Dentro del conjunto" : "Fuera del conjunto"}</p>
         </article>
-        <article class="summary-item">
+        <article class="summary-item ${alertCount ? "summary-item--alert is-critical" : ""}">
           <h3>Alertas</h3>
-          <p>${record.history.filter((visit) => visit.entryMissing).length}</p>
+          <p>${alertCount}</p>
+        </article>
+        <article class="summary-item">
+          <h3>Solicitudes</h3>
+          <p>${record.requests.length}</p>
         </article>
       </div>
       <div class="details-panel" hidden>
@@ -113,6 +198,7 @@ function renderVisitorCard(record) {
             </div>
           </div>
         </article>
+        ${renderVisitorRequestsSection(record)}
       </div>
     </article>
   `;
@@ -123,10 +209,12 @@ function applyVisitorFilters() {
   const name = qs("#visitor-filter-name").value.trim().toLowerCase();
   const tower = qs("#visitor-filter-tower").value;
   const apartment = qs("#visitor-filter-apartment").value.trim().toLowerCase();
+  const alertFilter = qs("#visitor-filter-alerts").value;
   const from = qs("#visitor-filter-date-from").value;
   const to = qs("#visitor-filter-date-to").value;
 
   return visitorState.filter((record) => {
+    const alertCount = getAlertCount(record);
     const matchesPlate = !plate || record.plateDisplay.toLowerCase().includes(plate);
     const matchesName =
       !name ||
@@ -152,8 +240,14 @@ function applyVisitorFilters() {
         const date = new Date(visit.entryAt || visit.exitAt || record.createdAt);
         return date <= new Date(`${to}T23:59:59`);
       });
+    const matchesAlerts =
+      alertFilter === "with-alerts"
+        ? alertCount > 0
+        : alertFilter === "without-alerts"
+          ? alertCount === 0
+          : true;
 
-    return matchesPlate && matchesName && matchesTower && matchesApartment && matchesFrom && matchesTo;
+    return matchesPlate && matchesName && matchesTower && matchesApartment && matchesAlerts && matchesFrom && matchesTo;
   });
 }
 
@@ -163,6 +257,26 @@ function renderVisitorList() {
   container.innerHTML = filtered.length
     ? filtered.map(renderVisitorCard).join("")
     : '<div class="panel empty-state">No se encontraron visitantes con los filtros actuales.</div>';
+}
+
+function openRequestResolutionModal(record, request, status, reload) {
+  openFormModal({
+    title: status === "approved" ? "Aprobar solicitud" : "Rechazar solicitud",
+    description: `Solicitud asociada a la placa ${record.plateDisplay}.`,
+    submitText: status === "approved" ? "Aprobar" : "Rechazar",
+    danger: status === "rejected",
+    content: `
+      <div class="field">
+        <label for="request-resolution-note">Nota de resolución</label>
+        <textarea id="request-resolution-note" name="resolutionNote" placeholder="Opcional"></textarea>
+      </div>
+    `,
+    onSubmit: async (formData) => {
+      await setRequestStatus(request.id, status, formData.get("resolutionNote"));
+      showToast("Solicitud actualizada correctamente.", "success");
+      await reload();
+    },
+  });
 }
 
 function openVisitorEditModal(record, reload) {
@@ -288,7 +402,20 @@ async function initAdminVisitorsPage() {
   fillSelect(qs("#visitor-filter-tower"), getTowerOptions(), "Todas las torres");
 
   async function reload() {
-    visitorState = await listVisitorsDetailed();
+    const [visitors, requests] = await Promise.all([listVisitorsDetailed(), listAllRequests()]);
+    const requestsByPlate = requests.reduce((map, request) => {
+      const key = request.plate_normalized;
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key).push(request);
+      return map;
+    }, new Map());
+
+    visitorState = visitors.map((visitor) => ({
+      ...visitor,
+      requests: requestsByPlate.get(visitor.plateNormalized) || [],
+    }));
     renderVisitorList();
   }
 
@@ -307,6 +434,16 @@ async function initAdminVisitorsPage() {
     if (action === "toggle-details") {
       const panel = visitorCard.querySelector(".details-panel");
       panel.hidden = !panel.hidden;
+      return;
+    }
+
+    if (action === "view-requests") {
+      const panel = visitorCard.querySelector(".details-panel");
+      panel.hidden = false;
+      visitorCard.querySelector("[data-request-section]")?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
       return;
     }
 
@@ -366,6 +503,50 @@ async function initAdminVisitorsPage() {
       } catch (error) {
         showToast(serializeError(error), "error");
       }
+      return;
+    }
+
+    if (action === "approve-request" || action === "reject-request") {
+      const requestId = event.target.dataset.requestId;
+      const request = record.requests.find((item) => item.id === requestId);
+      if (!request) {
+        return;
+      }
+
+      openRequestResolutionModal(
+        record,
+        request,
+        action === "approve-request" ? "approved" : "rejected",
+        reload
+      );
+      return;
+    }
+
+    if (action === "delete-request") {
+      const requestId = event.target.dataset.requestId;
+      const request = record.requests.find((item) => item.id === requestId);
+      if (!request) {
+        return;
+      }
+
+      const confirmed = await confirmModal({
+        title: "Eliminar solicitud",
+        description: `Se eliminará la solicitud asociada a la placa ${record.plateDisplay}.`,
+        confirmText: "Eliminar solicitud",
+        danger: true,
+      });
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await removeRequest(request.id);
+        showToast("Solicitud eliminada correctamente.", "success");
+        await reload();
+      } catch (error) {
+        showToast(serializeError(error), "error");
+      }
     }
   });
 
@@ -374,6 +555,7 @@ async function initAdminVisitorsPage() {
     "#visitor-filter-name",
     "#visitor-filter-tower",
     "#visitor-filter-apartment",
+    "#visitor-filter-alerts",
     "#visitor-filter-date-from",
     "#visitor-filter-date-to",
   ].forEach((selector) => {
@@ -389,4 +571,3 @@ async function initAdminVisitorsPage() {
 }
 
 initAdminVisitorsPage();
-

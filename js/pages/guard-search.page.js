@@ -22,9 +22,27 @@ import {
   searchVisitorByPlate,
 } from "../services/visitor.service.js";
 import { submitChangeRequest } from "../services/request.service.js";
-import { mountTopbar } from "../ui/layout.js";
+import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
 import { openFormModal } from "../ui/modal.js";
 import { showToast } from "../ui/notifications.js";
+
+function renderSummaryList(values, emptyLabel) {
+  if (!values.length) {
+    return `<p>${escapeHtml(emptyLabel)}</p>`;
+  }
+
+  return `
+    <div class="content-stack">
+      ${values
+        .map(
+          (value) => `
+            <div class="badge">${escapeHtml(value)}</div>
+          `
+        )
+        .join("")}
+    </div>
+  `;
+}
 
 function renderApartmentOptions() {
   return getApartmentOptions().map((option) => `<option value="${option}">${option}</option>`).join("");
@@ -206,15 +224,15 @@ function renderResidentSummary(record) {
       </article>
       <article class="summary-item">
         <h3>Teléfonos</h3>
-        <p>${escapeHtml(record.phones.join(", "))}</p>
+        ${renderSummaryList(record.phones, "Sin teléfonos")}
       </article>
       <article class="summary-item">
         <h3>Apartamentos</h3>
-        <p>${escapeHtml(record.apartments.map((apartment) => apartment.label).join(" · "))}</p>
+        ${renderSummaryList(record.apartments.map((apartment) => apartment.label), "Sin apartamentos")}
       </article>
       <article class="summary-item">
         <h3>Vehículos asociados</h3>
-        <p>${escapeHtml(record.vehicles.map((vehicle) => vehicle.plateDisplay).join(", "))}</p>
+        ${renderSummaryList(record.vehicles.map((vehicle) => vehicle.plateDisplay), "Sin vehículos")}
       </article>
     </div>
   `;
@@ -490,4 +508,3 @@ async function initGuardPage() {
 }
 
 initGuardPage();
-
