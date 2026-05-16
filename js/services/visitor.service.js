@@ -9,7 +9,8 @@ import {
   isValidPlate,
   uniqueStrings,
 } from "../core/utils.js";
-import { fetchApartments, fetchResidentApartments, fetchResidentPhones, fetchResidents } from "../data/residents.repository.js";
+import { fetchApartments, fetchResidentApartments, fetchResidents } from "../data/residents.repository.js";
+import { fetchApartmentPhoneNumbers } from "../data/apartment-phones.repository.js";
 import {
   deleteVisitorAccessLog,
   deleteVisitorVehicle,
@@ -20,53 +21,92 @@ import {
   updateVisitorAccessLog,
   updateVisitorVehicle,
 } from "../data/visitors.repository.js";
+import { getApartmentContactContextById, getApartmentContactContextByLocation } from "./apartment-contact.service.js";
 
-async function fetchApartmentContext(apartmentId) {
-  if (!apartmentId) {
-    return {
-      apartment: null,
-      residents: [],
-      phones: [],
-    };
+function deriveVisitorVisitStatus(visit) {
+  if (visit.no_entry_at) {
+    return "no-entry";
   }
 
-  const [apartments, residentLinks] = await Promise.all([
-    fetchApartments({ ids: [apartmentId] }),
-    fetchResidentApartments({ apartmentIds: [apartmentId] }),
-  ]);
+  if (visit.entry_at && !visit.exit_at) {
+    return "inside";
+  }
 
-  const residentIds = uniqueStrings(residentLinks.map((link) => link.resident_id));
-  const [residents, phones] = residentIds.length
-    ? await Promise.all([fetchResidents({ ids: residentIds }), fetchResidentPhones({ residentIds })])
-    : [[], []];
+  if (visit.entry_at && visit.exit_at) {
+    return "completed";
+  }
 
-  return {
-    apartment: apartments[0] || null,
-    residents: residents.map((resident) => ({
-      id: resident.id,
-      fullName: resident.full_name,
-    })),
-    phones: uniqueStrings(phones.map((phone) => phone.phone)),
-  };
+  if (!visit.entry_at && visit.exit_at && visit.entry_missing) {
+    return "exit-without-entry";
+  }
+
+  if (visit.announced_at && !visit.entry_at) {
+    return "announced";
+  }
+
+  return "created";
 }
 
-function buildVisitorRecords({ vehicles, accessLogs, apartments, residentLinks, residents, phones }) {
+function buildVisitorRecords({
+  vehicles,
+  accessLogs,
+  apartments,
+  residentLinks,
+  residents,
+  apartmentPhoneNumbers,
+}) {
   const apartmentMap = new Map(apartments.map((apartment) => [apartment.id, apartment]));
   const residentMap = new Map(residents.map((resident) => [resident.id, resident]));
   const accessLogsByVehicle = groupBy(accessLogs, (log) => log.visitor_vehicle_id);
   const residentIdsByApartment = groupBy(residentLinks, (link) => link.apartment_id);
-  const phonesByResident = groupBy(phones, (phone) => phone.resident_id);
+  const apartmentPhonesByApartment = groupBy(apartmentPhoneNumbers, (phone) => phone.apartment_id);
 
   return vehicles
     .map((vehicle) => {
-      const history = (accessLogsByVehicle.get(vehicle.id) || []).sort(
-        (left, right) => getLatestTimestamp(right.entry_at, right.exit_at, right.created_at) - getLatestTimestamp(left.entry_at, left.exit_at, left.created_at)
-      );
+      const history = (accessLogsByVehicle.get(vehicle.id) || [])
+        .map((visit) => ({
+          id: visit.id,
+          visitorName: visit.visitor_name,
+          towerSnapshot: visit.tower_snapshot,
+          apartmentNumberSnapshot: visit.apartment_number_snapshot,
+          residentNamesSnapshot: visit.resident_names_snapshot || [],
+          apartmentPhonesSnapshot: visit.apartment_phones_snapshot || [],
+          primaryApartmentPhoneSnapshot: visit.primary_apartment_phone_snapshot,
+          announcedAt: visit.announced_at,
+          entryAt: visit.entry_at,
+          exitAt: visit.exit_at,
+          noEntryAt: visit.no_entry_at,
+          entryMissing: visit.entry_missing,
+          createdAt: visit.created_at,
+          updatedAt: visit.updated_at,
+          status: deriveVisitorVisitStatus(visit),
+        }))
+        .sort(
+          (left, right) =>
+            getLatestTimestamp(
+              right.exitAt,
+              right.entryAt,
+              right.noEntryAt,
+              right.announcedAt,
+              right.updatedAt,
+              right.createdAt
+            ) -
+            getLatestTimestamp(
+              left.exitAt,
+              left.entryAt,
+              left.noEntryAt,
+              left.announcedAt,
+              left.updatedAt,
+              left.createdAt
+            )
+        );
       const latestVisit = history[0] || null;
-      const openVisit = history.find((visit) => visit.entry_at && !visit.exit_at) || null;
-      const currentApartmentId = latestVisit?.apartment_id || vehicle.last_apartment_id;
-      const apartment = apartmentMap.get(currentApartmentId) || null;
-      const relatedResidentLinks = currentApartmentId ? residentIdsByApartment.get(currentApartmentId) || [] : [];
+      const openVisit = history.find((visit) => visit.entryAt && !visit.exitAt) || null;
+      const pendingAnnouncement =
+        history.find((visit) => visit.announcedAt && !visit.entryAt && !visit.exitAt && !visit.noEntryAt) || null;
+      const selectedApartmentId = vehicle.last_apartment_id;
+      const apartment = apartmentMap.get(selectedApartmentId) || null;
+      const relatedResidentLinks = selectedApartmentId ? residentIdsByApartment.get(selectedApartmentId) || [] : [];
       const currentResidents = relatedResidentLinks
         .map((link) => residentMap.get(link.resident_id))
         .filter(Boolean)
@@ -74,9 +114,13 @@ function buildVisitorRecords({ vehicles, accessLogs, apartments, residentLinks, 
           id: resident.id,
           fullName: resident.full_name,
         }));
-      const currentPhones = uniqueStrings(
-        relatedResidentLinks.flatMap((link) => (phonesByResident.get(link.resident_id) || []).map((phone) => phone.phone))
-      );
+      const apartmentPhones = (apartmentPhonesByApartment.get(selectedApartmentId) || []).map((phone) => ({
+        id: phone.id,
+        phone: phone.phone,
+        phoneNormalized: phone.phone_normalized,
+        isPrimary: phone.is_primary,
+      }));
+      const primaryPhone = apartmentPhones.find((phone) => phone.isPrimary) || null;
 
       return {
         id: vehicle.id,
@@ -94,33 +138,15 @@ function buildVisitorRecords({ vehicles, accessLogs, apartments, residentLinks, 
               label: buildApartmentLabel(apartment.tower, apartment.apartment_number),
             }
           : null,
-        latestVisit: latestVisit
-          ? {
-              id: latestVisit.id,
-              visitorName: latestVisit.visitor_name,
-              towerSnapshot: latestVisit.tower_snapshot,
-              apartmentNumberSnapshot: latestVisit.apartment_number_snapshot,
-              residentNamesSnapshot: latestVisit.resident_names_snapshot || [],
-              apartmentPhonesSnapshot: latestVisit.apartment_phones_snapshot || [],
-              entryAt: latestVisit.entry_at,
-              exitAt: latestVisit.exit_at,
-              entryMissing: latestVisit.entry_missing,
-            }
-          : null,
+        latestVisit,
         openVisit,
-        history: history.map((visit) => ({
-          id: visit.id,
-          visitorName: visit.visitor_name,
-          towerSnapshot: visit.tower_snapshot,
-          apartmentNumberSnapshot: visit.apartment_number_snapshot,
-          residentNamesSnapshot: visit.resident_names_snapshot || [],
-          apartmentPhonesSnapshot: visit.apartment_phones_snapshot || [],
-          entryAt: visit.entry_at,
-          exitAt: visit.exit_at,
-          entryMissing: visit.entry_missing,
-        })),
+        pendingAnnouncement,
+        history,
         currentResidents,
-        currentPhones,
+        currentPhones: apartmentPhones.map((phone) => phone.phone),
+        currentApartmentPhones: apartmentPhones,
+        currentPrimaryPhone: primaryPhone,
+        missingPrimaryPhone: apartmentPhones.length > 0 && !primaryPhone,
       };
     })
     .sort((left, right) => getLatestTimestamp(right.updatedAt, right.createdAt) - getLatestTimestamp(left.updatedAt, left.createdAt));
@@ -143,13 +169,55 @@ async function resolveApartmentRecord(tower, apartmentNumber) {
   return apartments[0];
 }
 
-export async function getApartmentResidentsContext(tower, apartmentNumber) {
-  const apartment = await resolveApartmentRecord(tower, apartmentNumber);
-  const context = await fetchApartmentContext(apartment.id);
+async function ensureVisitorVehicle({ plate, visitorName, apartmentId }) {
+  const normalized = canonicalizePlate(plate);
+  const vehicles = await fetchVisitorVehicles({ plateNormalized: normalized });
+  const existing = vehicles[0];
+
+  if (existing) {
+    return updateVisitorVehicle(existing.id, {
+      plate_display: formatPlate(plate),
+      plate_normalized: normalized,
+      vehicle_type: inferVehicleType(plate),
+      last_known_name: visitorName.trim(),
+      last_apartment_id: apartmentId,
+    });
+  }
+
+  return insertVisitorVehicle({
+    plate_display: formatPlate(plate),
+    plate_normalized: normalized,
+    vehicle_type: inferVehicleType(plate),
+    last_known_name: visitorName.trim(),
+    last_apartment_id: apartmentId,
+  });
+}
+
+function buildVisitorSnapshotPayload(vehicle, apartmentContext, visitorName) {
   return {
-    apartment,
+    visitor_vehicle_id: vehicle.id,
+    plate_display: vehicle.plate_display,
+    plate_normalized: vehicle.plate_normalized,
+    visitor_name: visitorName.trim(),
+    apartment_id: apartmentContext.apartment.id,
+    tower_snapshot: apartmentContext.apartment.tower,
+    apartment_number_snapshot: apartmentContext.apartment.apartment_number,
+    resident_names_snapshot: apartmentContext.residents.map((resident) => resident.fullName),
+    apartment_phones_snapshot: apartmentContext.apartmentPhones.map((phone) => phone.phone),
+    primary_apartment_phone_snapshot: apartmentContext.primaryPhone?.phone || null,
+  };
+}
+
+export async function getApartmentResidentsContext(tower, apartmentNumber) {
+  const context = await getApartmentContactContextByLocation(tower, apartmentNumber);
+  return {
+    apartment: context.apartment,
     residents: context.residents,
-    phones: context.phones,
+    phones: context.apartmentPhones.map((phone) => phone.phone),
+    apartmentPhones: context.apartmentPhones,
+    primaryPhone: context.primaryPhone,
+    hasPrimaryPhone: context.hasPrimaryPhone,
+    missingPrimaryPhone: context.missingPrimaryPhone,
   };
 }
 
@@ -162,13 +230,15 @@ export async function listVisitorsDetailed({ dateFrom = null, dateTo = null } = 
     ...accessLogs.map((visit) => visit.apartment_id).filter(Boolean),
   ]);
 
-  const [apartments, residentLinks] = apartmentIds.length
-    ? await Promise.all([fetchApartments({ ids: apartmentIds }), fetchResidentApartments({ apartmentIds })])
-    : [[], []];
+  const [apartments, residentLinks, apartmentPhoneNumbers] = apartmentIds.length
+    ? await Promise.all([
+        fetchApartments({ ids: apartmentIds }),
+        fetchResidentApartments({ apartmentIds }),
+        fetchApartmentPhoneNumbers({ apartmentIds }),
+      ])
+    : [[], [], []];
   const residentIds = uniqueStrings(residentLinks.map((link) => link.resident_id));
-  const [residents, phones] = residentIds.length
-    ? await Promise.all([fetchResidents({ ids: residentIds }), fetchResidentPhones({ residentIds })])
-    : [[], []];
+  const residents = residentIds.length ? await fetchResidents({ ids: residentIds }) : [];
 
   return buildVisitorRecords({
     vehicles,
@@ -176,7 +246,7 @@ export async function listVisitorsDetailed({ dateFrom = null, dateTo = null } = 
     apartments,
     residentLinks,
     residents,
-    phones,
+    apartmentPhoneNumbers,
   });
 }
 
@@ -197,13 +267,15 @@ export async function searchVisitorByPlate(rawPlate) {
     [vehicle.last_apartment_id, ...accessLogs.map((visit) => visit.apartment_id)].filter(Boolean)
   );
 
-  const [apartments, residentLinks] = apartmentIds.length
-    ? await Promise.all([fetchApartments({ ids: apartmentIds }), fetchResidentApartments({ apartmentIds })])
-    : [[], []];
+  const [apartments, residentLinks, apartmentPhoneNumbers] = apartmentIds.length
+    ? await Promise.all([
+        fetchApartments({ ids: apartmentIds }),
+        fetchResidentApartments({ apartmentIds }),
+        fetchApartmentPhoneNumbers({ apartmentIds }),
+      ])
+    : [[], [], []];
   const residentIds = uniqueStrings(residentLinks.map((link) => link.resident_id));
-  const [residents, phones] = residentIds.length
-    ? await Promise.all([fetchResidents({ ids: residentIds }), fetchResidentPhones({ residentIds })])
-    : [[], []];
+  const residents = residentIds.length ? await fetchResidents({ ids: residentIds }) : [];
 
   return buildVisitorRecords({
     vehicles,
@@ -211,7 +283,7 @@ export async function searchVisitorByPlate(rawPlate) {
     apartments,
     residentLinks,
     residents,
-    phones,
+    apartmentPhoneNumbers,
   })[0];
 }
 
@@ -221,12 +293,33 @@ export async function registerVisitorVehicle({ plate, visitorName, tower, apartm
   }
 
   const apartment = await resolveApartmentRecord(tower, apartmentNumber);
-  return insertVisitorVehicle({
-    plate_display: formatPlate(plate),
-    plate_normalized: canonicalizePlate(plate),
-    vehicle_type: inferVehicleType(plate),
-    last_known_name: visitorName.trim(),
-    last_apartment_id: apartment.id,
+  return ensureVisitorVehicle({
+    plate,
+    visitorName,
+    apartmentId: apartment.id,
+  });
+}
+
+export async function announceVisitor({ plate, visitorName, tower, apartmentNumber }) {
+  if (!isValidPlate(plate)) {
+    throw new Error("La placa del visitante no es válida.");
+  }
+
+  const apartment = await resolveApartmentRecord(tower, apartmentNumber);
+  const apartmentContext = await getApartmentContactContextById(apartment.id);
+  const vehicle = await ensureVisitorVehicle({
+    plate,
+    visitorName,
+    apartmentId: apartment.id,
+  });
+
+  return insertVisitorAccessLog({
+    ...buildVisitorSnapshotPayload(vehicle, apartmentContext, visitorName),
+    announced_at: new Date().toISOString(),
+    entry_at: null,
+    exit_at: null,
+    no_entry_at: null,
+    entry_missing: false,
   });
 }
 
@@ -235,33 +328,81 @@ export async function recordVisitorEntry({ plate, visitorName, tower, apartmentN
     throw new Error("La placa del visitante no es válida.");
   }
 
-  const normalized = canonicalizePlate(plate);
-  let vehicles = await fetchVisitorVehicles({ plateNormalized: normalized });
-  let vehicle = vehicles[0];
   const apartment = await resolveApartmentRecord(tower, apartmentNumber);
-  const apartmentContext = await fetchApartmentContext(apartment.id);
+  const apartmentContext = await getApartmentContactContextById(apartment.id);
+  const vehicle = await ensureVisitorVehicle({
+    plate,
+    visitorName,
+    apartmentId: apartment.id,
+  });
+  const accessLogs = await fetchVisitorAccessLogs({ vehicleIds: [vehicle.id] });
+  const openLog = accessLogs.find((visit) => visit.entry_at && !visit.exit_at);
+  const pendingAnnouncement = accessLogs.find(
+    (visit) => visit.announced_at && !visit.entry_at && !visit.exit_at && !visit.no_entry_at
+  );
+  const payload = buildVisitorSnapshotPayload(vehicle, apartmentContext, visitorName);
 
-  if (!vehicle) {
-    vehicle = await insertVisitorVehicle({
-      plate_display: formatPlate(plate),
-      plate_normalized: normalized,
-      vehicle_type: inferVehicleType(plate),
-      last_known_name: visitorName.trim(),
-      last_apartment_id: apartment.id,
+  if (pendingAnnouncement) {
+    const log = await updateVisitorAccessLog(pendingAnnouncement.id, {
+      ...payload,
+      entry_at: new Date().toISOString(),
+      no_entry_at: null,
+      exit_at: null,
+      entry_missing: false,
+    });
+
+    return {
+      log,
+      hadOpenLog: Boolean(openLog),
+      usedAnnouncement: true,
+    };
+  }
+
+  const log = await insertVisitorAccessLog({
+    ...payload,
+    announced_at: new Date().toISOString(),
+    entry_at: new Date().toISOString(),
+    exit_at: null,
+    no_entry_at: null,
+    entry_missing: false,
+  });
+
+  return {
+    log,
+    hadOpenLog: Boolean(openLog),
+    usedAnnouncement: false,
+  };
+}
+
+export async function markVisitorNoEntry({ plate = null, logId = null }) {
+  if (logId) {
+    return updateVisitorAccessLog(logId, {
+      no_entry_at: new Date().toISOString(),
+      entry_at: null,
+      exit_at: null,
+      entry_missing: false,
     });
   }
 
-  return insertVisitorAccessLog({
-    visitor_vehicle_id: vehicle.id,
-    plate_display: vehicle.plate_display,
-    plate_normalized: vehicle.plate_normalized,
-    visitor_name: visitorName.trim(),
-    apartment_id: apartment.id,
-    tower_snapshot: apartment.tower,
-    apartment_number_snapshot: apartment.apartment_number,
-    resident_names_snapshot: apartmentContext.residents.map((resident) => resident.fullName),
-    apartment_phones_snapshot: apartmentContext.phones,
-    entry_at: new Date().toISOString(),
+  const normalized = canonicalizePlate(plate);
+  const vehicles = await fetchVisitorVehicles({ plateNormalized: normalized });
+  if (!vehicles.length) {
+    throw new Error("No existe un visitante registrado con esa placa.");
+  }
+
+  const vehicle = vehicles[0];
+  const accessLogs = await fetchVisitorAccessLogs({ vehicleIds: [vehicle.id] });
+  const pendingAnnouncement = accessLogs.find(
+    (visit) => visit.announced_at && !visit.entry_at && !visit.exit_at && !visit.no_entry_at
+  );
+
+  if (!pendingAnnouncement) {
+    throw new Error("No existe un anuncio pendiente para marcar como no ingresó.");
+  }
+
+  return updateVisitorAccessLog(pendingAnnouncement.id, {
+    no_entry_at: new Date().toISOString(),
+    entry_at: null,
     exit_at: null,
     entry_missing: false,
   });
@@ -279,26 +420,55 @@ export async function recordVisitorExit({ plate }) {
   const openLog = accessLogs.find((visit) => visit.entry_at && !visit.exit_at);
 
   if (openLog) {
-    return updateVisitorAccessLog(openLog.id, {
+    const log = await updateVisitorAccessLog(openLog.id, {
       exit_at: new Date().toISOString(),
     });
+
+    return {
+      log,
+      entryMissing: false,
+      hadOpenLog: true,
+    };
   }
 
-  const context = await fetchApartmentContext(vehicle.last_apartment_id);
-  return insertVisitorAccessLog({
-    visitor_vehicle_id: vehicle.id,
-    plate_display: vehicle.plate_display,
-    plate_normalized: vehicle.plate_normalized,
-    visitor_name: vehicle.last_known_name || "Visitante sin nombre reciente",
-    apartment_id: vehicle.last_apartment_id,
-    tower_snapshot: context.apartment?.tower || null,
-    apartment_number_snapshot: context.apartment?.apartment_number || null,
-    resident_names_snapshot: context.residents.map((resident) => resident.fullName),
-    apartment_phones_snapshot: context.phones,
+  const apartmentContext = vehicle.last_apartment_id
+    ? await getApartmentContactContextById(vehicle.last_apartment_id)
+    : {
+        apartment: null,
+        residents: [],
+        apartmentPhones: [],
+        primaryPhone: null,
+      };
+  const payload =
+    apartmentContext.apartment && apartmentContext.apartment.id
+      ? buildVisitorSnapshotPayload(vehicle, apartmentContext, vehicle.last_known_name || "Visitante sin nombre reciente")
+      : {
+          visitor_vehicle_id: vehicle.id,
+          plate_display: vehicle.plate_display,
+          plate_normalized: vehicle.plate_normalized,
+          visitor_name: vehicle.last_known_name || "Visitante sin nombre reciente",
+          apartment_id: vehicle.last_apartment_id,
+          tower_snapshot: apartmentContext.apartment?.tower || null,
+          apartment_number_snapshot: apartmentContext.apartment?.apartment_number || null,
+          resident_names_snapshot: apartmentContext.residents.map((resident) => resident.fullName),
+          apartment_phones_snapshot: apartmentContext.apartmentPhones.map((phone) => phone.phone),
+          primary_apartment_phone_snapshot: apartmentContext.primaryPhone?.phone || null,
+        };
+
+  const log = await insertVisitorAccessLog({
+    ...payload,
+    announced_at: null,
     entry_at: null,
     exit_at: new Date().toISOString(),
+    no_entry_at: null,
     entry_missing: true,
   });
+
+  return {
+    log,
+    entryMissing: true,
+    hadOpenLog: false,
+  };
 }
 
 export async function updateVisitorBundle({
@@ -327,21 +497,26 @@ export async function updateVisitorHistoryLog({
   visitorName,
   tower,
   apartmentNumber,
+  announcedAt,
   entryAt,
   exitAt,
+  noEntryAt,
 }) {
   const apartment = await resolveApartmentRecord(tower, apartmentNumber);
-  const apartmentContext = await fetchApartmentContext(apartment.id);
+  const apartmentContext = await getApartmentContactContextById(apartment.id);
   await updateVisitorAccessLog(logId, {
     visitor_name: visitorName.trim(),
     apartment_id: apartment.id,
     tower_snapshot: apartment.tower,
     apartment_number_snapshot: apartment.apartment_number,
     resident_names_snapshot: apartmentContext.residents.map((resident) => resident.fullName),
-    apartment_phones_snapshot: apartmentContext.phones,
+    apartment_phones_snapshot: apartmentContext.apartmentPhones.map((phone) => phone.phone),
+    primary_apartment_phone_snapshot: apartmentContext.primaryPhone?.phone || null,
+    announced_at: announcedAt,
     entry_at: entryAt,
     exit_at: exitAt,
-    entry_missing: !entryAt,
+    no_entry_at: noEntryAt,
+    entry_missing: !entryAt && Boolean(exitAt),
   });
 }
 

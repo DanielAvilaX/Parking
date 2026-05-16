@@ -5,13 +5,24 @@ import {
   escapeHtml,
   getTowerOptions,
   matchesText,
+  normalizePhone,
   serializeError,
   toFriendlyDate,
 } from "../core/utils.js";
 import { requireRole } from "../services/auth.service.js";
 import { listResidentsDetailed, removeResident, updateResidentBundle } from "../services/resident.service.js";
+import {
+  buildApartmentAlertText,
+  buildTelHref,
+  buildWhatsAppHref,
+  defineApartmentPrimaryPhone,
+  defineApartmentPrimaryPhoneByLocation,
+  GENERAL_CONTACT_MESSAGE,
+  listApartmentContactOptions,
+  logContactAction,
+} from "../services/contact.service.js";
 import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
-import { confirmModal, openFormModal } from "../ui/modal.js";
+import { confirmModal, openFormModal } from "../ui/modal.js?v=20260514-phase1c";
 import { showToast } from "../ui/notifications.js";
 
 let residentState = [];
@@ -27,6 +38,27 @@ function renderSummaryList(values, emptyLabel) {
         .map(
           (value) => `
             <div class="badge">${escapeHtml(value)}</div>
+          `
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderApartmentPhones(apartment) {
+  if (!apartment.phoneNumbers?.length) {
+    return '<p class="muted">Sin números del apartamento.</p>';
+  }
+
+  return `
+    <div class="badge-row">
+      ${apartment.phoneNumbers
+        .map(
+          (phone) => `
+            <span class="badge ${phone.isPrimary ? "badge-info" : ""}">
+              ${escapeHtml(phone.phone)}
+              ${phone.isPrimary ? "· Principal" : ""}
+            </span>
           `
         )
         .join("")}
@@ -54,6 +86,107 @@ function parseApartmentList(value = "") {
       apartmentNumber: parts[1],
     };
   });
+}
+
+function parseApartmentListSafe(value = "") {
+  try {
+    return parseApartmentList(value);
+  } catch {
+    return [];
+  }
+}
+
+function buildPrimaryPhoneFieldName(tower, apartmentNumber) {
+  return `primaryPhone__${tower}__${apartmentNumber}`;
+}
+
+function buildApartmentPhoneCandidates(record, tower, apartmentNumber, typedPhones) {
+  const apartment = record.apartments.find(
+    (item) => String(item.tower) === String(tower) && String(item.apartmentNumber) === String(apartmentNumber)
+  );
+  const candidates = new Map();
+
+  (apartment?.phoneNumbers || []).forEach((phone) => {
+    candidates.set(normalizePhone(phone.phone), {
+      phone: phone.phone,
+      isPrimary: phone.isPrimary,
+    });
+  });
+
+  typedPhones.forEach((phone) => {
+    const normalized = normalizePhone(phone);
+    if (!normalized || candidates.has(normalized)) {
+      return;
+    }
+
+    candidates.set(normalized, {
+      phone,
+      isPrimary: false,
+    });
+  });
+
+  return [...candidates.values()];
+}
+
+function renderResidentPrimaryPhoneSelectors(dialog, record) {
+  const container = dialog.querySelector("#resident-primary-phone-config");
+  if (!container) {
+    return;
+  }
+
+  const apartments = parseApartmentListSafe(dialog.querySelector("#resident-apartments-edit")?.value || "");
+  const typedPhones = parseLineList(dialog.querySelector("#resident-phones-edit")?.value || "");
+
+  if (!apartments.length) {
+    container.innerHTML = '<p class="muted">Agrega al menos un apartamento para poder definir números principales.</p>';
+    return;
+  }
+
+  container.innerHTML = apartments
+    .map((apartmentEntry) => {
+      const candidates = buildApartmentPhoneCandidates(
+        record,
+        apartmentEntry.tower,
+        apartmentEntry.apartmentNumber,
+        typedPhones
+      );
+      const fieldName = buildPrimaryPhoneFieldName(apartmentEntry.tower, apartmentEntry.apartmentNumber);
+      const currentApartment = record.apartments.find(
+        (item) =>
+          String(item.tower) === String(apartmentEntry.tower) &&
+          String(item.apartmentNumber) === String(apartmentEntry.apartmentNumber)
+      );
+      const defaultPhone =
+        candidates.find((phone) => phone.isPrimary)?.phone ||
+        currentApartment?.primaryPhone?.phone ||
+        "";
+
+      return `
+        <div class="field">
+          <label for="${fieldName}">Número principal para Torre ${escapeHtml(
+            String(apartmentEntry.tower)
+          )} · Apto ${escapeHtml(String(apartmentEntry.apartmentNumber))}</label>
+          <select id="${fieldName}" name="${fieldName}">
+            <option value="">Sin definir</option>
+            ${candidates
+              .map(
+                (phone) => `
+                  <option value="${escapeHtml(phone.phone)}" ${phone.phone === defaultPhone ? "selected" : ""}>
+                    ${escapeHtml(phone.phone)}${phone.isPrimary ? " · Actual principal" : ""}
+                  </option>
+                `
+              )
+              .join("")}
+          </select>
+          ${
+            candidates.length
+              ? '<p class="helper-text">Puedes dejarlo sin definir si aún no quieres asignar un principal.</p>'
+              : '<p class="helper-text">No hay teléfonos disponibles todavía para este apartamento.</p>'
+          }
+        </div>
+      `;
+    })
+    .join("");
 }
 
 function renderResidentCard(record) {
@@ -98,6 +231,7 @@ function renderResidentCard(record) {
                     <h3>${escapeHtml(apartment.label)}</h3>
                     <span class="helper-text">${apartment.relatedResidents.length} residente(s)</span>
                   </div>
+                  ${apartment.missingPrimaryPhone ? '<div class="inline-note inline-note--danger">Este apartamento no tiene número principal definido.</div>' : ""}
                   <p class="muted">Residentes asociados: ${escapeHtml(
                     apartment.relatedResidents
                       .map(
@@ -108,6 +242,16 @@ function renderResidentCard(record) {
                       )
                       .join(" | ") || "Sin residentes asociados"
                   )}</p>
+                  <div class="content-stack">
+                    <div>
+                      <h4>Números del apartamento</h4>
+                      ${renderApartmentPhones(apartment)}
+                    </div>
+                    <div class="action-row">
+                      <button class="button-ghost" type="button" data-action="resident-call" data-apartment-id="${apartment.id}" data-resident-id="${record.id}" data-target-name="${escapeHtml(record.fullName)}">Llamar</button>
+                      <button class="button-ghost" type="button" data-action="resident-whatsapp" data-apartment-id="${apartment.id}" data-resident-id="${record.id}" data-target-name="${escapeHtml(record.fullName)}">WhatsApp</button>
+                    </div>
+                  </div>
                   <div class="table-wrap">
                     <div class="table-scroll">
                       <table class="data-table">
@@ -115,8 +259,10 @@ function renderResidentCard(record) {
                           <tr>
                             <th>Placa visitante</th>
                             <th>Nombre</th>
+                            <th>Anuncio</th>
                             <th>Ingreso</th>
                             <th>Salida</th>
+                            <th>No ingresó</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -128,13 +274,15 @@ function renderResidentCard(record) {
                                       <tr>
                                         <td>${escapeHtml(visit.plate_display)}</td>
                                         <td>${escapeHtml(visit.visitor_name)}</td>
+                                        <td>${escapeHtml(visit.announced_at ? toFriendlyDate(visit.announced_at) : "No registrado")}</td>
                                         <td>${escapeHtml(visit.entry_at ? toFriendlyDate(visit.entry_at) : "No registrada")}</td>
                                         <td>${escapeHtml(visit.exit_at ? toFriendlyDate(visit.exit_at) : "Pendiente")}</td>
+                                        <td>${escapeHtml(visit.no_entry_at ? toFriendlyDate(visit.no_entry_at) : "No aplica")}</td>
                                       </tr>
                                     `
                                   )
                                   .join("")
-                              : '<tr><td colspan="4">Sin visitas registradas para este apartamento.</td></tr>'
+                              : '<tr><td colspan="6">Sin visitas registradas para este apartamento.</td></tr>'
                           }
                         </tbody>
                       </table>
@@ -205,8 +353,28 @@ function openResidentEditModal(record, reload) {
           record.apartments.map((apartment) => `${apartment.tower}-${apartment.apartmentNumber}`).join("\n")
         )}</textarea>
       </div>
+      <div id="resident-primary-phone-config" class="content-stack"></div>
     `,
+    onOpen: (dialog) => {
+      renderResidentPrimaryPhoneSelectors(dialog, record);
+      dialog
+        .querySelector("#resident-phones-edit")
+        ?.addEventListener("input", () => renderResidentPrimaryPhoneSelectors(dialog, record));
+      dialog
+        .querySelector("#resident-apartments-edit")
+        ?.addEventListener("input", () => renderResidentPrimaryPhoneSelectors(dialog, record));
+    },
     onSubmit: async (formData) => {
+      const confirmed = await confirmModal({
+        title: "Confirmar cambios del residente",
+        description: `Vas a modificar datos personales de ${record.fullName}.`,
+        confirmText: "Guardar cambios",
+      });
+
+      if (!confirmed) {
+        return false;
+      }
+
       await updateResidentBundle({
         residentId: record.id,
         fullName: formData.get("fullName"),
@@ -214,8 +382,96 @@ function openResidentEditModal(record, reload) {
         vehicles: parseLineList(formData.get("vehicles")).map((plate) => ({ plate })),
         apartments: parseApartmentList(formData.get("apartments")),
       });
+
+      const apartments = parseApartmentList(formData.get("apartments"));
+      const primaryPhoneEntries = apartments
+        .map((apartment) => ({
+          tower: apartment.tower,
+          apartmentNumber: apartment.apartmentNumber,
+          phone: formData.get(buildPrimaryPhoneFieldName(apartment.tower, apartment.apartmentNumber)),
+        }))
+        .filter((entry) => entry.phone);
+
+      for (const entry of primaryPhoneEntries) {
+        await defineApartmentPrimaryPhoneByLocation(entry);
+      }
+
       showToast("Residente actualizado correctamente.", "success");
       await reload();
+    },
+  });
+}
+
+async function openApartmentContactModal({
+  apartmentId,
+  actionType,
+  residentId,
+  targetName,
+  rerender,
+}) {
+  const contactContext = await listApartmentContactOptions(apartmentId);
+  if (!contactContext.apartmentPhones.length) {
+    throw new Error("Este apartamento no tiene números disponibles para contacto.");
+  }
+
+  const warningText = buildApartmentAlertText(contactContext);
+  openFormModal({
+    title: actionType === "call" ? "Llamar al apartamento" : "Abrir WhatsApp",
+    description: contactContext.apartment?.label || "Selecciona el número a utilizar.",
+    submitText: actionType === "call" ? "Llamar" : "Abrir WhatsApp",
+    content: `
+      <div class="content-stack">
+        ${warningText ? `<div class="inline-note inline-note--danger">${escapeHtml(warningText)}</div>` : ""}
+        <div class="choice-stack">
+          ${contactContext.apartmentPhones
+            .map(
+              (phone, index) => `
+                <label class="option-card">
+                  <input type="radio" name="phoneId" value="${phone.id}" ${phone.isPrimary || (!contactContext.primaryPhone && index === 0) ? "checked" : ""} />
+                  <span>${escapeHtml(phone.phone)}</span>
+                  ${phone.isPrimary ? '<span class="badge badge-info">Principal</span>' : ""}
+                </label>
+              `
+            )
+            .join("")}
+        </div>
+        <label class="option-card">
+          <input type="checkbox" name="setPrimary" />
+          <span>Definir el número seleccionado como principal</span>
+        </label>
+      </div>
+    `,
+    onSubmit: async (formData) => {
+      const phoneId = formData.get("phoneId");
+      const selectedPhone = contactContext.apartmentPhones.find((phone) => phone.id === phoneId);
+      if (!selectedPhone) {
+        throw new Error("Selecciona un número para continuar.");
+      }
+
+      if (formData.get("setPrimary")) {
+        await defineApartmentPrimaryPhone(apartmentId, selectedPhone.id);
+      }
+
+      await logContactAction({
+        actionType,
+        contextType: "resident",
+        apartmentId,
+        residentId,
+        targetName,
+        phone: selectedPhone.phone,
+        isPrimaryPhone: selectedPhone.isPrimary || Boolean(formData.get("setPrimary")),
+        messageText: actionType === "whatsapp" ? GENERAL_CONTACT_MESSAGE : null,
+      });
+
+      if (actionType === "call") {
+        window.location.href = buildTelHref(selectedPhone.phone);
+      } else {
+        window.open(buildWhatsAppHref(selectedPhone.phone, GENERAL_CONTACT_MESSAGE), "_blank", "noopener");
+      }
+
+      if (rerender) {
+        await rerender();
+      }
     },
   });
 }
@@ -241,8 +497,9 @@ async function initAdminResidentsPage() {
   }
 
   qs("#resident-admin-list").addEventListener("click", async (event) => {
-    const action = event.target.closest("[data-action]")?.dataset.action;
-    if (!action) {
+    const actionElement = event.target.closest("[data-action]");
+    const action = actionElement?.dataset.action;
+    if (!actionElement || !action) {
       return;
     }
 
@@ -252,36 +509,59 @@ async function initAdminResidentsPage() {
       return;
     }
 
-    if (action === "toggle-details") {
-      const panel = residentCard.querySelector(".details-panel");
-      panel.hidden = !panel.hidden;
-      return;
-    }
-
-    if (action === "edit") {
-      openResidentEditModal(record, reload);
-      return;
-    }
-
-    if (action === "delete") {
-      const confirmed = await confirmModal({
-        title: "Eliminar residente",
-        description: "Se eliminarán sus relaciones actuales y vehículos asociados. Esta acción requiere confirmación.",
-        confirmText: "Eliminar",
-        danger: true,
-      });
-
-      if (!confirmed) {
+    try {
+      if (action === "toggle-details") {
+        const panel = residentCard.querySelector(".details-panel");
+        panel.hidden = !panel.hidden;
         return;
       }
 
-      try {
+      if (action === "edit") {
+        openResidentEditModal(record, reload);
+        return;
+      }
+
+      if (action === "resident-call") {
+        await openApartmentContactModal({
+          apartmentId: actionElement.dataset.apartmentId,
+          actionType: "call",
+          residentId: actionElement.dataset.residentId,
+          targetName: actionElement.dataset.targetName,
+          rerender: reload,
+        });
+        return;
+      }
+
+      if (action === "resident-whatsapp") {
+        await openApartmentContactModal({
+          apartmentId: actionElement.dataset.apartmentId,
+          actionType: "whatsapp",
+          residentId: actionElement.dataset.residentId,
+          targetName: actionElement.dataset.targetName,
+          rerender: reload,
+        });
+        return;
+      }
+
+      if (action === "delete") {
+        const confirmed = await confirmModal({
+          title: "Eliminar residente",
+          description: "Se eliminarán sus relaciones actuales y vehículos asociados. Esta acción requiere confirmación.",
+          confirmText: "Eliminar",
+          danger: true,
+        });
+
+        if (!confirmed) {
+          return;
+        }
+
         await removeResident(record.id);
         showToast("Residente eliminado correctamente.", "success");
         await reload();
-      } catch (error) {
-        showToast(serializeError(error, "No fue posible eliminar el residente."), "error");
+        return;
       }
+    } catch (error) {
+      showToast(serializeError(error, "No fue posible completar la acción."), "error");
     }
   });
 

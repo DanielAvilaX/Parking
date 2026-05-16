@@ -5,9 +5,34 @@ function getDialog() {
   return document.getElementById("app-modal");
 }
 
+function isTemporaryDialog(dialog) {
+  return dialog?.dataset?.temporaryModal === "true";
+}
+
+function createTemporaryDialog() {
+  const dialog = document.createElement("dialog");
+  dialog.className = "app-modal";
+  dialog.dataset.temporaryModal = "true";
+  document.body.appendChild(dialog);
+  return dialog;
+}
+
+export function closeAllModals() {
+  document.querySelectorAll("dialog.app-modal").forEach((dialog) => {
+    if (dialog.open || dialog.innerHTML) {
+      closeDialog(dialog);
+    }
+  });
+}
+
 function closeDialog(dialog) {
-  dialog.close();
+  if (dialog.open) {
+    dialog.close();
+  }
   dialog.innerHTML = "";
+  if (isTemporaryDialog(dialog)) {
+    dialog.remove();
+  }
 }
 
 export function openFormModal({
@@ -51,7 +76,7 @@ export function openFormModal({
     try {
       const shouldClose = await onSubmit?.(new FormData(form), dialog);
       if (shouldClose !== false) {
-        cleanup();
+        closeAllModals();
       }
     } catch (error) {
       showToast(serializeError(error, "No fue posible completar la acción."), "error");
@@ -70,7 +95,8 @@ export function confirmModal({
   danger = false,
 }) {
   return new Promise((resolve) => {
-    const dialog = getDialog();
+    const baseDialog = getDialog();
+    const dialog = baseDialog?.open ? createTemporaryDialog() : baseDialog;
     let settled = false;
 
     const finalize = (value) => {

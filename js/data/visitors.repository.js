@@ -25,7 +25,7 @@ export async function fetchVisitorAccessLogs({
   let query = supabase
     .from("visitor_access_logs")
     .select(
-      "id, visitor_vehicle_id, plate_display, plate_normalized, visitor_name, apartment_id, tower_snapshot, apartment_number_snapshot, resident_names_snapshot, apartment_phones_snapshot, entry_at, exit_at, entry_missing, created_at, updated_at"
+      "id, visitor_vehicle_id, plate_display, plate_normalized, visitor_name, apartment_id, tower_snapshot, apartment_number_snapshot, resident_names_snapshot, apartment_phones_snapshot, primary_apartment_phone_snapshot, announced_at, entry_at, exit_at, no_entry_at, entry_missing, created_at, updated_at"
     )
     .order("created_at", { ascending: false });
 
@@ -77,7 +77,7 @@ export async function insertVisitorAccessLog(payload) {
       .from("visitor_access_logs")
       .insert(payload)
       .select(
-        "id, visitor_vehicle_id, plate_display, plate_normalized, visitor_name, apartment_id, tower_snapshot, apartment_number_snapshot, resident_names_snapshot, apartment_phones_snapshot, entry_at, exit_at, entry_missing, created_at, updated_at"
+        "id, visitor_vehicle_id, plate_display, plate_normalized, visitor_name, apartment_id, tower_snapshot, apartment_number_snapshot, resident_names_snapshot, apartment_phones_snapshot, primary_apartment_phone_snapshot, announced_at, entry_at, exit_at, no_entry_at, entry_missing, created_at, updated_at"
       )
       .single()
   );
@@ -90,7 +90,7 @@ export async function updateVisitorAccessLog(accessLogId, payload) {
       .update(payload)
       .eq("id", accessLogId)
       .select(
-        "id, visitor_vehicle_id, plate_display, plate_normalized, visitor_name, apartment_id, tower_snapshot, apartment_number_snapshot, resident_names_snapshot, apartment_phones_snapshot, entry_at, exit_at, entry_missing, created_at, updated_at"
+        "id, visitor_vehicle_id, plate_display, plate_normalized, visitor_name, apartment_id, tower_snapshot, apartment_number_snapshot, resident_names_snapshot, apartment_phones_snapshot, primary_apartment_phone_snapshot, announced_at, entry_at, exit_at, no_entry_at, entry_missing, created_at, updated_at"
       )
       .single()
   );
@@ -102,4 +102,3 @@ export async function deleteVisitorAccessLog(accessLogId) {
     throw error;
   }
 }
-

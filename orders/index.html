@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pedidos | Registro de Vehículos Davinci</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/base.css?v=20260511-logo-rect" />
+    <link rel="stylesheet" href="/styles/components.css?v=20260514-orders" />
+    <link rel="stylesheet" href="/styles/pages.css?v=20260514-orders" />
+  </head>
+  <body data-scene="orders">
+    <div id="app-shell" class="page-shell">
+      <main class="page-container page-grid page-grid--admin">
+        <section class="hero-card">
+          <div class="page-heading">
+            <h1>Pedidos en portería</h1>
+            <p>Registra, notifica y entrega pedidos recibidos para los apartamentos del conjunto.</p>
+          </div>
+        </section>
+        <section class="panel content-stack">
+          <div class="action-row">
+            <button id="create-order-button" class="button" type="button">Registrar pedido</button>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="orders-filter-status">Estado</label>
+              <select id="orders-filter-status">
+                <option value="all">Todos</option>
+                <option value="in_porteria_unnotified">En portería sin notificar</option>
+                <option value="notified_in_porteria">Notificado y en portería</option>
+                <option value="delivered">Entregado</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="orders-filter-tower">Torre</label>
+              <select id="orders-filter-tower"></select>
+            </div>
+            <div class="field">
+              <label for="orders-filter-apartment">Apartamento</label>
+              <input id="orders-filter-apartment" type="text" placeholder="Ej. 304" />
+            </div>
+            <div class="field">
+              <label for="orders-filter-date-from">Desde</label>
+              <input id="orders-filter-date-from" type="date" />
+            </div>
+            <div class="field">
+              <label for="orders-filter-date-to">Hasta</label>
+              <input id="orders-filter-date-to" type="date" />
+            </div>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="table-wrap">
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Apartamento</th>
+                    <th>Residentes</th>
+                    <th>Teléfono principal</th>
+                    <th>Estado</th>
+                    <th>Recibido</th>
+                    <th>Notificado</th>
+                    <th>Entregado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="orders-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <dialog id="app-modal" class="app-modal"></dialog>
+    <script type="module" src="/js/pages/orders.page.js?v=20260514-phase1d"></script>
+  </body>
+</html>

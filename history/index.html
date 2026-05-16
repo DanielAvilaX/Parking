@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Historial | Registro de Vehículos Davinci</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/base.css?v=20260511-logo-rect" />
+    <link rel="stylesheet" href="/styles/components.css?v=20260514-history" />
+    <link rel="stylesheet" href="/styles/pages.css?v=20260514-history" />
+  </head>
+  <body data-scene="history">
+    <div id="app-shell" class="page-shell">
+      <main class="page-container page-grid page-grid--admin">
+        <section class="hero-card">
+          <div class="page-heading">
+            <h1>Historial operativo</h1>
+            <p>Consulta y ajusta los movimientos de residentes y visitantes desde una sola pantalla.</p>
+          </div>
+        </section>
+        <section class="panel content-stack">
+          <div class="tab-row" role="tablist" aria-label="Tipo de historial">
+            <button class="tab-button is-active" id="history-tab-residents" type="button" data-tab="residents">Residentes</button>
+            <button class="tab-button" id="history-tab-visitors" type="button" data-tab="visitors">Visitantes</button>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="history-filter-plate">Placa</label>
+              <input id="history-filter-plate" type="text" placeholder="AAA-000" />
+            </div>
+            <div class="field">
+              <label for="history-filter-apartment">Apartamento</label>
+              <input id="history-filter-apartment" type="text" placeholder="Ej. 304" />
+            </div>
+            <div class="field">
+              <label for="history-filter-tower">Torre</label>
+              <select id="history-filter-tower"></select>
+            </div>
+            <div class="field">
+              <label for="history-filter-resident">Residente</label>
+              <input id="history-filter-resident" type="text" placeholder="Nombre residente" />
+            </div>
+            <div class="field">
+              <label for="history-filter-visitor">Visitante</label>
+              <input id="history-filter-visitor" type="text" placeholder="Nombre visitante" />
+            </div>
+            <div class="field">
+              <label for="history-filter-status">Estado</label>
+              <select id="history-filter-status">
+                <option value="all">Todos</option>
+                <option value="inside">Dentro</option>
+                <option value="completed">Salida registrada</option>
+                <option value="announced">Anunciado</option>
+                <option value="no-entry">No ingresó</option>
+                <option value="exit-without-entry">Salida sin ingreso</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="history-filter-alerts">Alertas</label>
+              <select id="history-filter-alerts">
+                <option value="all">Todos</option>
+                <option value="with-alerts">Solo con alertas</option>
+                <option value="without-alerts">Solo sin alertas</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="history-filter-date-from">Desde</label>
+              <input id="history-filter-date-from" type="date" />
+            </div>
+            <div class="field">
+              <label for="history-filter-date-to">Hasta</label>
+              <input id="history-filter-date-to" type="date" />
+            </div>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="table-wrap">
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead id="history-table-head"></thead>
+                <tbody id="history-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <dialog id="app-modal" class="app-modal"></dialog>
+    <script type="module" src="/js/pages/history.page.js?v=20260514-phase1c"></script>
+  </body>
+</html>

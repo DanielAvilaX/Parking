@@ -32,36 +32,50 @@ function renderMetricCards(metrics) {
   container.innerHTML = `
     <article class="panel metric-card">
       <div>
-        <h3>Ingresos en el rango</h3>
-        <p>${metrics.entries}</p>
+        <h3>Visitantes en el rango</h3>
+        <p>${metrics.rangeVisitorEntries} / ${metrics.rangeVisitorExits}</p>
       </div>
-      <span class="badge badge-success">Movimientos de entrada</span>
+      <span class="badge badge-success">Ingresos / salidas</span>
     </article>
     <article class="panel metric-card">
       <div>
-        <h3>Salidas en el rango</h3>
-        <p>${metrics.exits}</p>
+        <h3>Residentes en el rango</h3>
+        <p>${metrics.rangeResidentEntries} / ${metrics.rangeResidentExits}</p>
       </div>
-      <span class="badge badge-info">Movimientos de salida</span>
+      <span class="badge badge-info">Ingresos / salidas</span>
     </article>
     <article class="panel metric-card">
       <div>
-        <h3>Vehículos activos</h3>
-        <p>${metrics.activeVehicles}</p>
+        <h3>Vehículos activos ahora</h3>
+        <p>${metrics.activeResidents + metrics.activeVisitors}</p>
       </div>
-      <span class="badge badge-warning">Actualmente dentro</span>
+      <span class="badge badge-warning">Residentes: ${metrics.activeResidents} · Visitantes: ${metrics.activeVisitors}</span>
     </article>
     <article class="panel metric-card">
       <div>
-        <h3>Salidas sin ingreso</h3>
-        <p>${metrics.missingEntryExits}</p>
+        <h3>Alertas operativas</h3>
+        <p>${metrics.rangeAlerts + metrics.rangeVisitorNoEntry}</p>
       </div>
-      <span class="badge badge-danger">Revisar en histórico</span>
+      <span class="badge badge-danger">Sin ingreso: ${metrics.rangeAlerts} · No ingresó: ${metrics.rangeVisitorNoEntry}</span>
+    </article>
+    <article class="panel metric-card">
+      <div>
+        <h3>Pedidos</h3>
+        <p>${metrics.rangeOrdersReceived} / ${metrics.rangeOrdersDelivered}</p>
+      </div>
+      <span class="badge badge-info">Recibidos / entregados en el rango · Activos ahora: ${metrics.openOrders}</span>
+    </article>
+    <article class="panel metric-card">
+      <div>
+        <h3>Contactos</h3>
+        <p>${metrics.rangeCalls + metrics.rangeWhatsApp}</p>
+      </div>
+      <span class="badge">Llamadas: ${metrics.rangeCalls} · WhatsApp: ${metrics.rangeWhatsApp}</span>
     </article>
   `;
 }
 
-async function renderCharts(series, metrics) {
+async function renderCharts(series, metrics, statusBreakdown) {
   const Chart = await ensureChartLibrary();
 
   if (trafficChart) {
@@ -78,15 +92,27 @@ async function renderCharts(series, metrics) {
       labels: series.labels,
       datasets: [
         {
-          label: "Ingresos",
-          data: series.entries,
+          label: "Ingreso visitantes",
+          data: series.visitorEntries,
           backgroundColor: "#b9ff1e",
           borderRadius: 18,
         },
         {
-          label: "Salidas",
-          data: series.exits,
+          label: "Salida visitantes",
+          data: series.visitorExits,
           backgroundColor: "#2470ff",
+          borderRadius: 18,
+        },
+        {
+          label: "Ingreso residentes",
+          data: series.residentEntries,
+          backgroundColor: "#0f9d6c",
+          borderRadius: 18,
+        },
+        {
+          label: "Salida residentes",
+          data: series.residentExits,
+          backgroundColor: "#ffb020",
           borderRadius: 18,
         },
       ],
@@ -100,11 +126,11 @@ async function renderCharts(series, metrics) {
   statusChart = new Chart(qs("#status-chart"), {
     type: "doughnut",
     data: {
-      labels: ["Activos", "Salidas sin ingreso", "Salidas registradas"],
+      labels: statusBreakdown.labels,
       datasets: [
         {
-          data: [metrics.activeVehicles, metrics.missingEntryExits, metrics.exits],
-          backgroundColor: ["#b9ff1e", "#dc4455", "#2470ff"],
+          data: statusBreakdown.values,
+          backgroundColor: ["#0f9d6c", "#b9ff1e", "#2470ff", "#ffb020", "#dc4455"],
         },
       ],
     },
@@ -130,6 +156,7 @@ async function initAdminDashboardPage() {
 
   const fromInput = qs("#dashboard-date-from");
   const toInput = qs("#dashboard-date-to");
+  const granularityInput = qs("#dashboard-granularity");
   const refreshButton = qs("#dashboard-refresh");
   const today = toDateInputValue(new Date());
 
@@ -138,9 +165,9 @@ async function initAdminDashboardPage() {
 
   async function reload() {
     const range = getRangeBounds(fromInput.value, toInput.value);
-    const dashboard = await getDashboardMetrics(range.start, range.end);
+    const dashboard = await getDashboardMetrics(range.start, range.end, granularityInput.value);
     renderMetricCards(dashboard.totals);
-    await renderCharts(dashboard.trafficSeries, dashboard.totals);
+    await renderCharts(dashboard.trafficSeries, dashboard.totals, dashboard.statusBreakdown);
   }
 
   refreshButton.addEventListener("click", async () => {

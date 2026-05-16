@@ -25,6 +25,8 @@ export const ROUTES = Object.freeze({
   GUARD_HOME: "/guard/index.html",
   REGISTER_RESIDENT: "/guard/register-resident.html",
   REGISTER_VISITOR: "/guard/register-visitor.html",
+  HISTORY: "/history/index.html",
+  ORDERS: "/orders/index.html",
   ADMIN_RESIDENTS: "/admin/index.html",
   ADMIN_VISITORS: "/admin/visitors.html",
   ADMIN_DASHBOARD: "/admin/dashboard.html",
@@ -39,11 +41,14 @@ export const ADMIN_NAV_ITEMS = Object.freeze([
   { href: ROUTES.ADMIN_DASHBOARD, label: "Dashboard", key: "dashboard" },
   { href: ROUTES.ADMIN_REQUESTS, label: "Solicitudes", key: "requests" },
   { href: ROUTES.ADMIN_GUARDS, label: "Guardas", key: "guards" },
+  { href: ROUTES.HISTORY, label: "Historial", key: "history" },
+  { href: ROUTES.ORDERS, label: "Pedidos", key: "orders" },
   { href: ROUTES.SETTINGS, label: "Configuración", key: "settings" },
 ]);
 
 export const GUARD_NAV_ITEMS = Object.freeze([
   { href: ROUTES.GUARD_HOME, label: "Portería", key: "guard-home" },
+  { href: ROUTES.HISTORY, label: "Historial", key: "history" },
+  { href: ROUTES.ORDERS, label: "Pedidos", key: "orders" },
   { href: ROUTES.SETTINGS, label: "Configuración", key: "settings" },
 ]);
-

@@ -5,7 +5,7 @@ import { escapeHtml, matchesText, serializeError, toFriendlyDate } from "../core
 import { requireRole } from "../services/auth.service.js";
 import { listAllRequests, removeRequest, setRequestStatus } from "../services/request.service.js";
 import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
-import { confirmModal, openFormModal } from "../ui/modal.js";
+import { confirmModal, openFormModal } from "../ui/modal.js?v=20260514-phase1c";
 import { showToast } from "../ui/notifications.js";
 
 let requestState = [];

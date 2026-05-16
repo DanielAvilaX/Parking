@@ -5,7 +5,7 @@ import { escapeHtml, serializeError, toFriendlyDate } from "../core/utils.js";
 import { requireRole } from "../services/auth.service.js";
 import { changeGuardPassword, createGuard, listGuards, removeGuard, updateGuard } from "../services/guard-admin.service.js";
 import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
-import { confirmModal, openFormModal } from "../ui/modal.js";
+import { confirmModal, openFormModal } from "../ui/modal.js?v=20260514-phase1c";
 import { showToast } from "../ui/notifications.js";
 
 let guardState = [];

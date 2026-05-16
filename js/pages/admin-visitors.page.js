@@ -16,14 +16,26 @@ import {
 import { requireRole } from "../services/auth.service.js";
 import { listAllRequests, removeRequest, setRequestStatus } from "../services/request.service.js";
 import {
+  buildApartmentAlertText,
+  buildTelHref,
+  buildVisitorAnnouncementMessage,
+  buildWhatsAppHref,
+  defineApartmentPrimaryPhone,
+  defineApartmentPrimaryPhoneByLocation,
+  listApartmentContactOptions,
+  logContactAction,
+} from "../services/contact.service.js";
+import {
+  getApartmentResidentsContext,
   listVisitorsDetailed,
+  markVisitorNoEntry,
   removeVisitor,
   removeVisitorLog,
   updateVisitorBundle,
   updateVisitorHistoryLog,
 } from "../services/visitor.service.js";
 import { mountTopbar } from "../ui/layout.js?v=20260511-logo";
-import { confirmModal, openFormModal } from "../ui/modal.js";
+import { confirmModal, openFormModal } from "../ui/modal.js?v=20260514-phase1c";
 import { showToast } from "../ui/notifications.js";
 
 let visitorState = [];
@@ -108,6 +120,129 @@ function renderApartmentOptions() {
   return getApartmentOptions().map((value) => `<option value="${value}">${value}</option>`).join("");
 }
 
+async function renderVisitorPrimaryPhoneField(dialog) {
+  const container = dialog.querySelector("#visitor-primary-phone-config");
+  if (!container) {
+    return;
+  }
+
+  const tower = dialog.querySelector("#visitor-tower-edit")?.value;
+  const apartment = dialog.querySelector("#visitor-apartment-edit")?.value;
+
+  if (!tower || !apartment) {
+    container.innerHTML = '<p class="muted">Selecciona torre y apartamento para definir el número principal.</p>';
+    return;
+  }
+
+  try {
+    const context = await getApartmentResidentsContext(tower, apartment);
+    const options = context.apartmentPhones || [];
+    container.innerHTML = `
+      <div class="field">
+        <label for="visitor-primary-phone">Número principal del apartamento</label>
+        <select id="visitor-primary-phone" name="primaryPhone">
+          <option value="">Sin definir</option>
+          ${options
+            .map(
+              (phone) => `
+                <option value="${escapeHtml(phone.phone)}" ${phone.isPrimary ? "selected" : ""}>
+                  ${escapeHtml(phone.phone)}${phone.isPrimary ? " · Actual principal" : ""}
+                </option>
+              `
+            )
+            .join("")}
+        </select>
+        ${
+          options.length
+            ? '<p class="helper-text">Puedes cambiar el principal del apartamento desde esta edición.</p>'
+            : '<p class="helper-text">Este apartamento no tiene teléfonos disponibles todavía.</p>'
+        }
+      </div>
+    `;
+  } catch (error) {
+    container.innerHTML = `<p class="helper-text">${escapeHtml(serializeError(error, "No fue posible cargar los teléfonos del apartamento."))}</p>`;
+  }
+}
+
+async function openVisitorContactModal(record, actionType, rerender) {
+  if (!record.lastApartment?.id) {
+    throw new Error("Este visitante no tiene un apartamento destino asociado.");
+  }
+
+  const contactContext = await listApartmentContactOptions(record.lastApartment.id);
+  if (!contactContext.apartmentPhones.length) {
+    throw new Error("Este apartamento no tiene números disponibles para contacto.");
+  }
+
+  const warningText = buildApartmentAlertText(contactContext);
+  const messageText = buildVisitorAnnouncementMessage({
+    plate: record.plateDisplay,
+    tower: record.lastApartment.tower,
+    apartmentNumber: record.lastApartment.apartmentNumber,
+  });
+
+  openFormModal({
+    title: actionType === "call" ? "Llamar al apartamento" : "Abrir WhatsApp",
+    description: contactContext.apartment?.label || "Selecciona el número a utilizar.",
+    submitText: actionType === "call" ? "Llamar" : "Abrir WhatsApp",
+    content: `
+      <div class="content-stack">
+        ${warningText ? `<div class="inline-note inline-note--danger">${escapeHtml(warningText)}</div>` : ""}
+        <div class="choice-stack">
+          ${contactContext.apartmentPhones
+            .map(
+              (phone, index) => `
+                <label class="option-card">
+                  <input type="radio" name="phoneId" value="${phone.id}" ${phone.isPrimary || (!contactContext.primaryPhone && index === 0) ? "checked" : ""} />
+                  <span>${escapeHtml(phone.phone)}</span>
+                  ${phone.isPrimary ? '<span class="badge badge-info">Principal</span>' : ""}
+                </label>
+              `
+            )
+            .join("")}
+        </div>
+        <label class="option-card">
+          <input type="checkbox" name="setPrimary" />
+          <span>Definir el número seleccionado como principal</span>
+        </label>
+      </div>
+    `,
+    onSubmit: async (formData) => {
+      const phoneId = formData.get("phoneId");
+      const selectedPhone = contactContext.apartmentPhones.find((phone) => phone.id === phoneId);
+      if (!selectedPhone) {
+        throw new Error("Selecciona un número para continuar.");
+      }
+
+      if (formData.get("setPrimary")) {
+        await defineApartmentPrimaryPhone(record.lastApartment.id, selectedPhone.id);
+      }
+
+      await logContactAction({
+        actionType,
+        contextType: "visitor",
+        apartmentId: record.lastApartment.id,
+        visitorVehicleId: record.id,
+        plate: record.plateDisplay,
+        targetName: record.lastKnownName,
+        phone: selectedPhone.phone,
+        isPrimaryPhone: selectedPhone.isPrimary || Boolean(formData.get("setPrimary")),
+        messageText,
+      });
+
+      if (actionType === "call") {
+        window.location.href = buildTelHref(selectedPhone.phone);
+      } else {
+        window.open(buildWhatsAppHref(selectedPhone.phone, messageText), "_blank", "noopener");
+      }
+
+      if (rerender) {
+        await rerender();
+      }
+    },
+  });
+}
+
 function renderVisitorCard(record) {
   const alertCount = getAlertCount(record);
 
@@ -119,6 +254,14 @@ function renderVisitorCard(record) {
           <p>Creado: ${escapeHtml(toFriendlyDate(record.createdAt))}</p>
         </div>
         <div class="action-row">
+          ${
+            record.lastApartment
+              ? `
+                <button class="button-ghost" type="button" data-action="visitor-call">Llamar</button>
+                <button class="button-ghost" type="button" data-action="visitor-whatsapp">WhatsApp</button>
+              `
+              : ""
+          }
           <button class="button-ghost" type="button" data-action="toggle-details">Más información</button>
           <button class="button-ghost" type="button" data-action="toggle-details" aria-label="Expandir o contraer detalles">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -164,8 +307,10 @@ function renderVisitorCard(record) {
                   <tr>
                     <th>Visitante</th>
                     <th>Destino</th>
+                    <th>Anuncio</th>
                     <th>Ingreso</th>
                     <th>Salida</th>
+                    <th>No ingresó</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -178,12 +323,27 @@ function renderVisitorCard(record) {
                               <tr data-log-id="${visit.id}">
                                 <td>${escapeHtml(visit.visitorName)}</td>
                                 <td>${escapeHtml(buildApartmentLabel(visit.towerSnapshot, visit.apartmentNumberSnapshot))}</td>
+                                <td>${escapeHtml(visit.announcedAt ? toFriendlyDate(visit.announcedAt) : "No registrado")}</td>
                                 <td>${escapeHtml(visit.entryAt ? toFriendlyDate(visit.entryAt) : "No registrada")}</td>
                                 <td>${escapeHtml(visit.exitAt ? toFriendlyDate(visit.exitAt) : "Pendiente")}</td>
+                                <td>${escapeHtml(visit.noEntryAt ? toFriendlyDate(visit.noEntryAt) : "No aplica")}</td>
                                 <td>
                                   <div class="action-row">
-                                    ${visit.entryMissing ? '<span class="badge badge-danger">Salida sin ingreso</span>' : ""}
+                                    ${
+                                      visit.entryMissing
+                                        ? '<span class="badge badge-danger">Salida sin ingreso</span>'
+                                        : visit.status === "announced"
+                                          ? '<span class="badge badge-warning">Anunciado</span>'
+                                          : visit.status === "no-entry"
+                                            ? '<span class="badge badge-danger">No ingresó</span>'
+                                            : ""
+                                    }
                                     <button class="button-ghost" type="button" data-action="edit-log" data-log-id="${visit.id}">Editar</button>
+                                    ${
+                                      visit.status === "announced"
+                                        ? `<button class="button-ghost" type="button" data-action="mark-no-entry" data-log-id="${visit.id}">No ingresó</button>`
+                                        : ""
+                                    }
                                     <button class="button-danger" type="button" data-action="delete-log" data-log-id="${visit.id}">Eliminar</button>
                                   </div>
                                 </td>
@@ -191,7 +351,7 @@ function renderVisitorCard(record) {
                             `
                           )
                           .join("")
-                      : '<tr><td colspan="5">Sin movimientos registrados.</td></tr>'
+                      : '<tr><td colspan="7">Sin movimientos registrados.</td></tr>'
                   }
                 </tbody>
               </table>
@@ -309,14 +469,32 @@ function openVisitorEditModal(record, reload) {
           </select>
         </div>
       </div>
+      <div id="visitor-primary-phone-config" class="content-stack"></div>
     `,
-    onOpen: (dialog) => {
+    onOpen: async (dialog) => {
       if (record.lastApartment) {
         dialog.querySelector("#visitor-tower-edit").value = String(record.lastApartment.tower);
         dialog.querySelector("#visitor-apartment-edit").value = record.lastApartment.apartmentNumber;
       }
+      await renderVisitorPrimaryPhoneField(dialog);
+      dialog
+        .querySelector("#visitor-tower-edit")
+        ?.addEventListener("change", () => void renderVisitorPrimaryPhoneField(dialog));
+      dialog
+        .querySelector("#visitor-apartment-edit")
+        ?.addEventListener("change", () => void renderVisitorPrimaryPhoneField(dialog));
     },
     onSubmit: async (formData) => {
+      const confirmed = await confirmModal({
+        title: "Confirmar cambios del visitante",
+        description: `Vas a modificar datos personales de la placa ${record.plateDisplay}.`,
+        confirmText: "Guardar cambios",
+      });
+
+      if (!confirmed) {
+        return false;
+      }
+
       await updateVisitorBundle({
         visitorId: record.id,
         plate: formatPlate(formData.get("plate")),
@@ -324,6 +502,16 @@ function openVisitorEditModal(record, reload) {
         tower: formData.get("tower"),
         apartmentNumber: formData.get("apartment"),
       });
+
+      const selectedPrimaryPhone = formData.get("primaryPhone");
+      if (selectedPrimaryPhone) {
+        await defineApartmentPrimaryPhoneByLocation({
+          tower: formData.get("tower"),
+          apartmentNumber: formData.get("apartment"),
+          phone: selectedPrimaryPhone,
+        });
+      }
+
       showToast("Visitante actualizado correctamente.", "success");
       await reload();
     },
@@ -358,6 +546,12 @@ function openHistoryEditModal(record, history, reload) {
       </div>
       <div class="field-grid">
         <div class="field">
+          <label for="history-announced-at">Anuncio</label>
+          <input id="history-announced-at" name="announcedAt" type="datetime-local" value="${escapeHtml(
+            toDateTimeInputValue(history.announcedAt)
+          )}" />
+        </div>
+        <div class="field">
           <label for="history-entry-at">Ingreso</label>
           <input id="history-entry-at" name="entryAt" type="datetime-local" value="${escapeHtml(toDateTimeInputValue(history.entryAt))}" />
         </div>
@@ -365,6 +559,12 @@ function openHistoryEditModal(record, history, reload) {
           <label for="history-exit-at">Salida</label>
           <input id="history-exit-at" name="exitAt" type="datetime-local" value="${escapeHtml(toDateTimeInputValue(history.exitAt))}" />
         </div>
+      </div>
+      <div class="field">
+        <label for="history-no-entry-at">No ingresó</label>
+        <input id="history-no-entry-at" name="noEntryAt" type="datetime-local" value="${escapeHtml(
+          toDateTimeInputValue(history.noEntryAt)
+        )}" />
       </div>
     `,
     onOpen: (dialog) => {
@@ -377,8 +577,10 @@ function openHistoryEditModal(record, history, reload) {
         visitorName: formData.get("visitorName"),
         tower: formData.get("tower"),
         apartmentNumber: formData.get("apartment"),
+        announcedAt: fromDateTimeInputValue(formData.get("announcedAt")),
         entryAt: fromDateTimeInputValue(formData.get("entryAt")),
         exitAt: fromDateTimeInputValue(formData.get("exitAt")),
+        noEntryAt: fromDateTimeInputValue(formData.get("noEntryAt")),
       });
       showToast(`Movimiento de ${record.plateDisplay} actualizado.`, "success");
       await reload();
@@ -420,8 +622,9 @@ async function initAdminVisitorsPage() {
   }
 
   qs("#visitor-admin-list").addEventListener("click", async (event) => {
-    const action = event.target.closest("[data-action]")?.dataset.action;
-    if (!action) {
+    const actionElement = event.target.closest("[data-action]");
+    const action = actionElement?.dataset.action;
+    if (!actionElement || !action) {
       return;
     }
 
@@ -431,122 +634,142 @@ async function initAdminVisitorsPage() {
       return;
     }
 
-    if (action === "toggle-details") {
-      const panel = visitorCard.querySelector(".details-panel");
-      panel.hidden = !panel.hidden;
-      return;
-    }
-
-    if (action === "view-requests") {
-      const panel = visitorCard.querySelector(".details-panel");
-      panel.hidden = false;
-      visitorCard.querySelector("[data-request-section]")?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
-      return;
-    }
-
-    if (action === "edit") {
-      openVisitorEditModal(record, reload);
-      return;
-    }
-
-    if (action === "delete") {
-      const confirmed = await confirmModal({
-        title: "Eliminar visitante",
-        description: "Se eliminará el registro principal del vehículo visitante y su historial dependerá de la configuración de la base de datos.",
-        confirmText: "Eliminar",
-        danger: true,
-      });
-
-      if (!confirmed) {
+    try {
+      if (action === "toggle-details") {
+        const panel = visitorCard.querySelector(".details-panel");
+        panel.hidden = !panel.hidden;
         return;
       }
 
-      try {
+      if (action === "view-requests") {
+        const panel = visitorCard.querySelector(".details-panel");
+        panel.hidden = false;
+        visitorCard.querySelector("[data-request-section]")?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+        return;
+      }
+
+      if (action === "edit") {
+        openVisitorEditModal(record, reload);
+        return;
+      }
+
+      if (action === "visitor-call") {
+        await openVisitorContactModal(record, "call", reload);
+        return;
+      }
+
+      if (action === "visitor-whatsapp") {
+        await openVisitorContactModal(record, "whatsapp", reload);
+        return;
+      }
+
+      if (action === "delete") {
+        const confirmed = await confirmModal({
+          title: "Eliminar visitante",
+          description: "Se eliminará el registro principal del vehículo visitante y su historial dependerá de la configuración de la base de datos.",
+          confirmText: "Eliminar",
+          danger: true,
+        });
+
+        if (!confirmed) {
+          return;
+        }
+
         await removeVisitor(record.id);
         showToast("Visitante eliminado correctamente.", "success");
         await reload();
-      } catch (error) {
-        showToast(serializeError(error), "error");
-      }
-      return;
-    }
-
-    if (action === "edit-log") {
-      const logId = event.target.dataset.logId;
-      const history = record.history.find((item) => item.id === logId);
-      if (history) {
-        openHistoryEditModal(record, history, reload);
-      }
-      return;
-    }
-
-    if (action === "delete-log") {
-      const logId = event.target.dataset.logId;
-      const confirmed = await confirmModal({
-        title: "Eliminar movimiento",
-        description: "Esta acción elimina un ingreso o salida histórica del visitante.",
-        confirmText: "Eliminar movimiento",
-        danger: true,
-      });
-
-      if (!confirmed) {
         return;
       }
 
-      try {
+      if (action === "edit-log") {
+        const logId = actionElement.dataset.logId;
+        const history = record.history.find((item) => item.id === logId);
+        if (history) {
+          openHistoryEditModal(record, history, reload);
+        }
+        return;
+      }
+
+      if (action === "delete-log") {
+        const logId = actionElement.dataset.logId;
+        const confirmed = await confirmModal({
+          title: "Eliminar movimiento",
+          description: "Esta acción elimina un ingreso o salida histórica del visitante.",
+          confirmText: "Eliminar movimiento",
+          danger: true,
+        });
+
+        if (!confirmed) {
+          return;
+        }
+
         await removeVisitorLog(logId);
         showToast("Movimiento eliminado correctamente.", "success");
         await reload();
-      } catch (error) {
-        showToast(serializeError(error), "error");
-      }
-      return;
-    }
-
-    if (action === "approve-request" || action === "reject-request") {
-      const requestId = event.target.dataset.requestId;
-      const request = record.requests.find((item) => item.id === requestId);
-      if (!request) {
         return;
       }
 
-      openRequestResolutionModal(
-        record,
-        request,
-        action === "approve-request" ? "approved" : "rejected",
-        reload
-      );
-      return;
-    }
+      if (action === "mark-no-entry") {
+        const logId = actionElement.dataset.logId;
+        const confirmed = await confirmModal({
+          title: "Marcar como no ingresó",
+          description: "El visitante quedará registrado como anunciado pero no ingresó.",
+          confirmText: "Marcar no ingreso",
+        });
 
-    if (action === "delete-request") {
-      const requestId = event.target.dataset.requestId;
-      const request = record.requests.find((item) => item.id === requestId);
-      if (!request) {
+        if (!confirmed) {
+          return;
+        }
+
+        await markVisitorNoEntry({ logId });
+        showToast("El visitante fue marcado como no ingresó.", "success");
+        await reload();
         return;
       }
 
-      const confirmed = await confirmModal({
-        title: "Eliminar solicitud",
-        description: `Se eliminará la solicitud asociada a la placa ${record.plateDisplay}.`,
-        confirmText: "Eliminar solicitud",
-        danger: true,
-      });
+      if (action === "approve-request" || action === "reject-request") {
+        const requestId = actionElement.dataset.requestId;
+        const request = record.requests.find((item) => item.id === requestId);
+        if (!request) {
+          return;
+        }
 
-      if (!confirmed) {
+        openRequestResolutionModal(
+          record,
+          request,
+          action === "approve-request" ? "approved" : "rejected",
+          reload
+        );
         return;
       }
 
-      try {
+      if (action === "delete-request") {
+        const requestId = actionElement.dataset.requestId;
+        const request = record.requests.find((item) => item.id === requestId);
+        if (!request) {
+          return;
+        }
+
+        const confirmed = await confirmModal({
+          title: "Eliminar solicitud",
+          description: `Se eliminará la solicitud asociada a la placa ${record.plateDisplay}.`,
+          confirmText: "Eliminar solicitud",
+          danger: true,
+        });
+
+        if (!confirmed) {
+          return;
+        }
+
         await removeRequest(request.id);
         showToast("Solicitud eliminada correctamente.", "success");
         await reload();
-      } catch (error) {
-        showToast(serializeError(error), "error");
       }
+    } catch (error) {
+      showToast(serializeError(error, "No fue posible completar la acción."), "error");
     }
   });
 
