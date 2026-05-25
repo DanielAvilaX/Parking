@@ -48,6 +48,7 @@ export const ADMIN_NAV_ITEMS = Object.freeze([
 
 export const GUARD_NAV_ITEMS = Object.freeze([
   { href: ROUTES.GUARD_HOME, label: "Portería", key: "guard-home" },
+  { href: ROUTES.ADMIN_RESIDENTS, label: "Residentes", key: "residents" },
   { href: ROUTES.HISTORY, label: "Historial", key: "history" },
   { href: ROUTES.ORDERS, label: "Pedidos", key: "orders" },
   { href: ROUTES.SETTINGS, label: "Configuración", key: "settings" },

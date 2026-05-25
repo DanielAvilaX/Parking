@@ -1,6 +1,6 @@
 import { THEME_OPTIONS } from "./constants.js";
 
-const THEME_KEY = "davinci-theme-preference";
+const THEME_KEY = "porteria360-theme-preference";
 let themeTimerId = null;
 
 function resolveAutomaticTheme() {

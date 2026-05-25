@@ -1,6 +1,6 @@
-# Registro de Vehículos Davinci
+# Portería 360
 
-Aplicación web multipágina para **gestión operativa de portería** en un conjunto residencial. El proyecto empezó como control de parqueadero, pero su alcance actual ya cubre residentes, visitantes, históricos, pedidos, contactos y preparación para notificaciones automáticas por WhatsApp.
+Aplicación web multipágina para **gestión operativa de portería** en un conjunto residencial. El proyecto empezó como control de parqueadero, pero su alcance actual ya cubre residentes, visitantes, históricos, pedidos y contactos manuales por llamada o WhatsApp.
 
 ## Resumen funcional
 
@@ -22,7 +22,6 @@ La aplicación resuelve estos procesos:
 - administración de cuentas de guardas
 - dashboard operativo
 - tema claro/oscuro automático o manual
-- preparación de Edge Functions para WhatsApp automático
 
 ## Stack técnico
 
@@ -31,7 +30,6 @@ La aplicación resuelve estos procesos:
 - `JavaScript` con módulos ES
 - `Supabase` para Auth, base de datos, RPC y RLS
 - `Chart.js` para dashboard
-- `Supabase Edge Functions` preparadas para WhatsApp Cloud API
 
 ## Estado actual
 
@@ -50,14 +48,10 @@ La aplicación resuelve estos procesos:
 - módulo de solicitudes
 - gestión de guardas
 - dashboard ampliado a portería
-- estructura base de Edge Functions
 
-### Aún no está conectado automáticamente
+### Cómo se envía WhatsApp
 
-- envío real de WhatsApp desde Edge Functions
-- procesamiento de eventos de entrega/lectura del webhook de Meta
-
-La estructura para esto ya existe en [supabase/README.md](./supabase/README.md) y [supabase/README_WHATSAPP_EDGE_FUNCTIONS.md](./supabase/README_WHATSAPP_EDGE_FUNCTIONS.md).
+El sistema NO envía mensajes automáticos. Cada acción de WhatsApp abre `wa.me` con un mensaje predefinido y el guarda o administrador confirma el envío desde la app de WhatsApp.
 
 ## Roles y permisos actuales
 
@@ -119,7 +113,6 @@ orders/
 settings/
 sql/
 styles/
-supabase/
 index.html
 README.md
 ```
@@ -135,7 +128,6 @@ README.md
 - [settings/README.md](./settings/README.md)
 - [sql/README.md](./sql/README.md)
 - [styles/README.md](./styles/README.md)
-- [supabase/README.md](./supabase/README.md)
 
 ## Base de datos actual
 
@@ -169,20 +161,13 @@ Notas:
 - la gestión de guardas depende de RPC SQL privilegiadas
 - los administradores se crean por SQL manual, no desde la app
 
-## WhatsApp y Edge Functions
+## WhatsApp
 
-La documentación completa quedó separada para que puedas seguirla por fases:
+El envío es siempre manual desde la app de WhatsApp del dispositivo del operador:
 
-- [supabase/README.md](./supabase/README.md)
-- [supabase/README_WHATSAPP_EDGE_FUNCTIONS.md](./supabase/README_WHATSAPP_EDGE_FUNCTIONS.md)
-
-Ahí se explica:
-
-- cómo preparar Meta
-- cómo crear templates
-- cómo configurar secretos
-- cómo desplegar funciones
-- cómo verificar el webhook
+- los botones de WhatsApp abren `https://wa.me/<numero>?text=<mensaje>`
+- la app deja registrada la acción en `contact_action_logs` para trazabilidad
+- el mensaje canned se controla desde [js/services/contact.service.js](./js/services/contact.service.js)
 
 ## Cómo probar la app
 
@@ -260,7 +245,6 @@ Depende de:
 - Supabase Database
 - RLS
 - RPC SQL
-- Edge Functions para WhatsApp
 
 ## Observaciones operativas
 
@@ -268,7 +252,6 @@ Depende de:
 - el número principal es una política por apartamento, no por residente
 - los históricos usan snapshots para preservar el contexto del momento
 - las llamadas y acciones de WhatsApp manual se registran en base de datos
-- la integración automática de WhatsApp aún requiere que tú completes la configuración en Meta y Supabase
 
 ## Recomendación de uso documental
 
@@ -277,4 +260,3 @@ Si vas a tocar algo del sistema, sigue este orden:
 1. lee este README
 2. revisa el README de la carpeta afectada
 3. revisa [sql/ESQUEMA_ACTUAL.md](./sql/ESQUEMA_ACTUAL.md) si el cambio toca datos
-4. revisa [supabase/README.md](./supabase/README.md) si el cambio toca funciones o WhatsApp

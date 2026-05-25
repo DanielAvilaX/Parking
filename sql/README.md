@@ -30,6 +30,12 @@ Por eso la documentación de base actual se reconstruyó con:
   - no modifica datos
   - sirve para revisar tablas nuevas, columnas nuevas, teléfonos por apartamento y conteos base
 
+- `03_porteria_fase2_preservar_historial.sql`
+  - cambia las FK de `resident_access_logs` y `visitor_access_logs` de `on delete cascade` a `on delete set null`
+  - hace nullable las columnas afectadas
+  - garantiza que el historial operativo se preserva aun cuando se elimina el residente, su vehículo o el vehículo visitante original
+  - los snapshots (`resident_name_snapshot`, `apartment_snapshots`, `visitor_name`, `plate_display`, etc.) son la fuente de verdad para la auditoría
+
 - `README_MIGRACION_PORTERIA.md`
   - explica por qué se eligió migración incremental
   - describe el orden de ejecución y cómo actuar si algo falla

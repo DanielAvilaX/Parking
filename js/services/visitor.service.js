@@ -23,7 +23,7 @@ import {
 } from "../data/visitors.repository.js";
 import { getApartmentContactContextById, getApartmentContactContextByLocation } from "./apartment-contact.service.js";
 
-function deriveVisitorVisitStatus(visit) {
+export function deriveVisitorVisitStatus(visit) {
   if (visit.no_entry_at) {
     return "no-entry";
   }

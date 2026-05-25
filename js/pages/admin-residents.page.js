@@ -1,4 +1,4 @@
-import { APP_ROLES } from "../core/constants.js";
+import { APP_ROLES, ROUTES } from "../core/constants.js";
 import { qs, fillSelect } from "../core/dom.js";
 import { initTheme } from "../core/theme.js";
 import {
@@ -26,6 +26,7 @@ import { confirmModal, openFormModal } from "../ui/modal.js?v=20260514-phase1c";
 import { showToast } from "../ui/notifications.js";
 
 let residentState = [];
+let currentRole = APP_ROLES.ADMIN;
 
 function renderSummaryList(values, emptyLabel) {
   if (!values.length) {
@@ -200,7 +201,11 @@ function renderResidentCard(record) {
         <div class="action-row">
           <button class="button-ghost" type="button" data-action="toggle-details">Más información</button>
           <button class="button" type="button" data-action="edit">Editar</button>
-          <button class="button-danger" type="button" data-action="delete">Eliminar</button>
+          ${
+            currentRole === APP_ROLES.ADMIN
+              ? '<button class="button-danger" type="button" data-action="delete">Eliminar</button>'
+              : ""
+          }
         </div>
       </div>
       <div class="summary-grid">
@@ -478,15 +483,21 @@ async function openApartmentContactModal({
 
 async function initAdminResidentsPage() {
   initTheme();
-  const sessionProfile = await requireRole([APP_ROLES.ADMIN]);
+  const sessionProfile = await requireRole([APP_ROLES.ADMIN, APP_ROLES.GUARD]);
   if (!sessionProfile) {
     return;
   }
 
+  currentRole = sessionProfile.profile.role;
+
   mountTopbar({
-    role: APP_ROLES.ADMIN,
+    role: currentRole,
     activeKey: "residents",
-    subtitle: "Panel administrativo",
+    subtitle: currentRole === APP_ROLES.ADMIN ? "Panel administrativo" : "Portería operativa",
+  });
+
+  qs("#register-resident-button")?.addEventListener("click", () => {
+    window.location.href = ROUTES.REGISTER_RESIDENT;
   });
 
   fillSelect(qs("#resident-filter-tower"), getTowerOptions(), "Todas las torres");

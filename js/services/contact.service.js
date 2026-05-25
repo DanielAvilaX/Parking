@@ -11,7 +11,7 @@ export const ORDER_WHATSAPP_MESSAGE =
   "Hola, te informamos desde portería que tienes un pedido recibido a tu nombre. Se encuentra disponible en portería para su recogida.";
 
 export const GENERAL_CONTACT_MESSAGE =
-  "Hola, te contactamos desde portería de Registro de Vehículos Davinci.";
+  "Hola, te contactamos desde la portería del conjunto.";
 
 export function buildVisitorAnnouncementMessage({ plate, tower, apartmentNumber }) {
   return `Hola, desde portería te informamos que el vehículo de placa ${formatPlate(

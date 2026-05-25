@@ -1,4 +1,4 @@
-const MODE_KEY = "davinci-auth-mode";
+const MODE_KEY = "porteria360-auth-mode";
 
 const SESSION_MODE = "session";
 const PERSISTENT_MODE = "persistent";

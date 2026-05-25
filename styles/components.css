@@ -497,21 +497,27 @@
 
 .toast-root {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   z-index: 80;
   display: grid;
   gap: 0.75rem;
-  width: min(360px, calc(100vw - 2rem));
+  width: min(420px, calc(100vw - 2rem));
+  justify-items: center;
+  pointer-events: none;
 }
 
 .toast {
-  padding: 0.95rem 1rem;
+  padding: 1rem 1.3rem;
   border-radius: 22px;
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--background-strong) 92%, transparent);
-  box-shadow: var(--shadow-card);
+  background: color-mix(in srgb, var(--background-strong) 96%, transparent);
+  box-shadow: var(--shadow-soft);
   animation: toast-in 240ms ease;
+  text-align: center;
+  width: 100%;
+  pointer-events: auto;
 }
 
 .toast--success {
@@ -572,6 +578,74 @@
   width: 1.2em;
   text-align: left;
   animation: dots 1.2s infinite steps(4, end);
+}
+
+.loader {
+  height: 15px;
+  aspect-ratio: 4;
+  --_g: no-repeat radial-gradient(circle farthest-side, var(--accent-strong) 95%, transparent);
+  background:
+    var(--_g) left,
+    var(--_g) right;
+  background-size: 25% 100%;
+  display: grid;
+}
+
+.loader::before,
+.loader::after {
+  content: "";
+  height: inherit;
+  aspect-ratio: 1;
+  grid-area: 1/1;
+  margin: auto;
+  border-radius: 50%;
+  transform-origin: -100% 50%;
+  background: var(--accent-strong);
+  animation: l49 1s infinite linear;
+}
+
+.loader::after {
+  transform-origin: 200% 50%;
+  --s: -1;
+  animation-delay: -0.5s;
+}
+
+@keyframes l49 {
+  58%,
+  100% {
+    transform: rotate(calc(var(--s, 1) * 1turn));
+  }
+}
+
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  width: fit-content;
+  height: fit-content;
+  margin: auto;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  color: inherit;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+}
+
+.loader-overlay:focus,
+.loader-overlay:focus-visible {
+  outline: none;
+}
+
+.loader-overlay::backdrop {
+  background: var(--backdrop);
+  backdrop-filter: blur(6px);
+}
+
+.loader-overlay .loader {
+  height: 26px;
 }
 
 @keyframes toast-in {

@@ -359,7 +359,8 @@ export async function listResidentsForApartment(tower, apartmentNumber) {
 }
 
 export async function createResidentBundle({ fullName, plate, phones, apartments, existingResidentId = null }) {
-  if (!isValidPlate(plate)) {
+  const hasPlate = Boolean(plate && plate.trim());
+  if (hasPlate && !isValidPlate(plate)) {
     throw new Error("La placa del residente no cumple con el formato permitido.");
   }
 
@@ -382,17 +383,21 @@ export async function createResidentBundle({ fullName, plate, phones, apartments
 
   await syncResidentPhones(targetResidentId, normalizedPhones, { replace: false });
   await syncResidentApartments(targetResidentId, apartmentIds, { replace: false });
-  await syncResidentVehicles(
-    targetResidentId,
-    [
-      {
-        plateDisplay: formatPlate(plate),
-        plateNormalized: canonicalizePlate(plate),
-        vehicleType: inferVehicleType(plate),
-      },
-    ],
-    { replace: false }
-  );
+
+  if (hasPlate) {
+    await syncResidentVehicles(
+      targetResidentId,
+      [
+        {
+          plateDisplay: formatPlate(plate),
+          plateNormalized: canonicalizePlate(plate),
+          vehicleType: inferVehicleType(plate),
+        },
+      ],
+      { replace: false }
+    );
+  }
+
   await syncApartmentPhonesFromResidents(apartmentIds);
   await Promise.all(apartmentIds.map((apartmentId) => ensureApartmentPrimaryPhone(apartmentId, normalizedPhones)));
 

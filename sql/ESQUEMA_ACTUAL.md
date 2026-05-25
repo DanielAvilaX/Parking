@@ -171,10 +171,12 @@ Columnas usadas:
 - `created_at`
 - `updated_at`
 
-Relaciones:
+Relaciones (todas con `on delete set null`):
 
 - `visitor_access_logs.visitor_vehicle_id -> visitor_vehicles.id`
 - `visitor_access_logs.apartment_id -> apartments.id`
+
+Nota: `visitor_vehicle_id` y `apartment_id` son nullable. Si se elimina el visitante o el apartamento, el log persiste con los snapshots intactos.
 
 Estados derivados por la app:
 
@@ -220,8 +222,8 @@ Histórico de ingreso/salida de residentes.
 Columnas:
 
 - `id`
-- `resident_id`
-- `resident_vehicle_id`
+- `resident_id` (nullable, set null on delete)
+- `resident_vehicle_id` (nullable, set null on delete)
 - `plate_display`
 - `plate_normalized`
 - `resident_name_snapshot`
@@ -233,10 +235,12 @@ Columnas:
 - `created_at`
 - `updated_at`
 
-Relaciones:
+Relaciones (todas con `on delete set null`):
 
 - `resident_access_logs.resident_id -> residents.id`
 - `resident_access_logs.resident_vehicle_id -> resident_vehicles.id`
+
+Nota: al eliminar un residente o vehículo, las FK quedan nulas pero los snapshots conservan el contexto completo. El historial nunca se borra como efecto colateral.
 
 Estados derivados por la app:
 

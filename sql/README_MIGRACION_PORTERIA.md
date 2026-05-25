@@ -131,7 +131,7 @@ Hola, desde porteria te informamos que el vehiculo de placa {PLACA} se encuentra
 
 ### Mensaje general
 
-Hola, te contactamos desde porteria de Registro de Vehiculos Davinci.
+Hola, te contactamos desde la porteria del conjunto.
 
 ## Nota tecnica importante
 

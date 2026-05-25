@@ -97,7 +97,7 @@ async function initResidentRegistrationPage() {
 
   mountTopbar({
     role: sessionProfile.profile.role,
-    activeKey: sessionProfile.profile.role === APP_ROLES.ADMIN ? "residents" : "guard-home",
+    activeKey: "residents",
     subtitle: sessionProfile.profile.role === APP_ROLES.ADMIN ? "Administración de residentes" : "Portería operativa",
   });
 
@@ -185,7 +185,10 @@ async function initResidentRegistrationPage() {
       });
 
       showToast("Residente guardado correctamente.", "success");
-      window.location.href = `/guard/index.html?plate=${encodeURIComponent(formatPlate(plateInput.value))}&notice=resident-created`;
+      const trimmedPlate = plateInput.value.trim();
+      window.location.href = trimmedPlate
+        ? `/guard/index.html?plate=${encodeURIComponent(formatPlate(trimmedPlate))}&notice=resident-created`
+        : "/admin/index.html?notice=resident-created";
     } catch (error) {
       showToast(serializeError(error, "No fue posible guardar el residente."), "error");
     } finally {

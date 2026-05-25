@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Registrar residente | Registro de Vehículos Davinci</title>
+    <title>Registrar residente | Portería 360</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
@@ -17,15 +17,15 @@
         <section class="hero-card">
           <div class="page-heading">
             <h1>Nuevo residente</h1>
-            <p>La placa consultada se autocompleta, pero puedes modificarla antes de guardar el registro.</p>
+            <p>La placa es opcional: déjala vacía si el residente no tiene vehículo. Si llegaste desde una búsqueda por placa, se autocompleta.</p>
           </div>
         </section>
         <section class="panel">
           <form id="resident-form" class="page-form">
             <div class="field-grid">
               <div class="field">
-                <label for="resident-plate">Placa</label>
-                <input id="resident-plate" name="plate" type="text" maxlength="7" placeholder="AAA-000" required />
+                <label for="resident-plate">Placa <span class="helper-text">(opcional)</span></label>
+                <input id="resident-plate" name="plate" type="text" maxlength="7" placeholder="AAA-000" />
               </div>
               <div class="field">
                 <label for="resident-name">Nombre completo del propietario</label>
