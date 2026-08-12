@@ -14,7 +14,28 @@ async function trackedFetch(input, init) {
   }
 }
 
-export const supabase = createClient(runtimeConfig.supabaseUrl, runtimeConfig.supabaseAnonKey, {
+async function loadSupabaseConfig() {
+  try {
+    const res = await fetch("/api/config");
+    if (!res.ok) throw new Error("config endpoint unavailable");
+    return await res.json();
+  } catch {
+    return { url: "", anonKey: "" };
+  }
+}
+
+const { url: supabaseUrl, anonKey: supabaseAnonKey } = await loadSupabaseConfig();
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error(
+    "Supabase no está configurado: faltan SUPABASE_URL / SUPABASE_ANON_KEY en el entorno (revisa /api/config)."
+  );
+}
+
+// createClient exige una URL/key con formato válido aunque estén vacías —
+// usamos un placeholder para no romper la carga del módulo en todas las
+// páginas; las llamadas a la API simplemente fallarán hasta configurarlas.
+export const supabase = createClient(supabaseUrl || "https://placeholder.supabase.co", supabaseAnonKey || "placeholder", {
   auth: {
     autoRefreshToken: true,
     detectSessionInUrl: true,

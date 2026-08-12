@@ -1,262 +1,68 @@
 # Portería 360
 
-Aplicación web multipágina para **gestión operativa de portería** en un conjunto residencial. El proyecto empezó como control de parqueadero, pero su alcance actual ya cubre residentes, visitantes, históricos, pedidos y contactos manuales por llamada o WhatsApp.
+Aplicación web para la gestión operativa de portería en conjuntos residenciales:
+control de residentes y visitantes, pedidos, historial de movimientos, y
+comunicación (llamada/WhatsApp) entre guardas, residentes y administración.
 
-## Resumen funcional
+## Funcionalidades
 
-La aplicación resuelve estos procesos:
-
-- autenticación con Supabase Auth
-- control por roles `admin` y `guard`
-- búsqueda rápida por placa en portería
-- registro y edición de residentes
-- registro y edición de visitantes
-- anuncios de visitantes
-- ingresos y salidas de visitantes
-- ingresos y salidas de residentes
-- salidas sin ingreso previo, con alerta visible
-- historial operativo consolidado
-- registro y gestión de pedidos en portería
-- llamadas y WhatsApp manual con trazabilidad
-- solicitudes, novedades e incidencias del guarda
-- administración de cuentas de guardas
-- dashboard operativo
-- tema claro/oscuro automático o manual
+- Autenticación con roles diferenciados (`admin` y `guarda`), cada uno con su
+  propio nivel de acceso.
+- Búsqueda rápida por placa desde portería, con registro de ingresos y
+  salidas de residentes y visitantes.
+- Anuncio de visitantes y alerta visible cuando se registra una salida sin
+  ingreso previo.
+- Gestión de pedidos: creación, notificación al residente y seguimiento hasta
+  la entrega.
+- Llamadas y mensajes de WhatsApp iniciados desde la app (vía `wa.me`, sin
+  envío automático) con registro de la acción para trazabilidad.
+- Historial operativo consolidado y dashboard con métricas por rango de
+  fechas.
+- Solicitudes, novedades e incidencias reportadas por el guarda, con flujo de
+  aprobación para el administrador.
+- Tema claro/oscuro.
 
 ## Stack técnico
 
-- `HTML` multipágina
-- `CSS` modular
-- `JavaScript` con módulos ES
-- `Supabase` para Auth, base de datos, RPC y RLS
-- `Chart.js` para dashboard
+HTML multipágina + JavaScript (módulos ES nativos, sin framework) + Supabase
+(autenticación, base de datos, RLS y funciones RPC) + Chart.js para el
+dashboard.
 
-## Estado actual
+La arquitectura del frontend está organizada por capas:
 
-### Ya funciona
+- `core/` — utilidades base, rutas, tema, storage, cliente de Supabase.
+- `data/` — repositorios y acceso a tablas/RPC.
+- `services/` — reglas de negocio y orquestación.
+- `pages/` — controladores de cada vista.
+- `ui/` — topbar, modales, notificaciones y helpers de render.
 
-- login y recuperación de contraseña
-- sesión persistente para guardas
-- sesión de navegador para administradores
-- control de acceso por roles
-- búsqueda operativa por placa
-- edición de residentes y visitantes
-- control de número principal por apartamento
-- registro de llamadas y acciones de WhatsApp manual
-- histórico de movimientos de residentes y visitantes
-- módulo de pedidos
-- módulo de solicitudes
-- gestión de guardas
-- dashboard ampliado a portería
+## Credenciales y variables de entorno
 
-### Cómo se envía WhatsApp
+Las credenciales de Supabase no viven en el código: [`js/core/supabase-client.js`](js/core/supabase-client.js)
+las obtiene en tiempo de ejecución desde una función serverless de Vercel
+([`api/config.js`](api/config.js)), que las lee de las variables de entorno
+del proyecto:
 
-El sistema NO envía mensajes automáticos. Cada acción de WhatsApp abre `wa.me` con un mensaje predefinido y el guarda o administrador confirma el envío desde la app de WhatsApp.
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
 
-## Roles y permisos actuales
+La `anon key` es pública por diseño (la seguridad real la dan las políticas
+RLS); mantenerla fuera del repo permite rotar de proyecto sin tocar código.
+La `service_role key` nunca se usa en el frontend.
 
-### Guarda
+## Ejecutar en local
 
-- puede consultar residentes, visitantes, históricos y pedidos
-- puede registrar anuncios, ingresos y salidas
-- puede editar residentes, visitantes y movimientos históricos
-- puede eliminar movimientos históricos
-- puede crear, editar y eliminar pedidos
-- puede abrir llamada y WhatsApp manual
-- puede registrar solicitudes, novedades e incidencias
-- no puede eliminar residentes
-- no puede administrar administradores
-
-### Administrador
-
-- tiene todo lo del guarda
-- además puede eliminar residentes
-- puede gestionar visitantes y guardas
-- puede aprobar, rechazar y eliminar solicitudes
-- puede administrar dashboard y configuraciones administrativas
-
-## Mapa de páginas
-
-- [index.html](./index.html): login, recuperación y actualización de contraseña por enlace
-- [guard/index.html](./guard/index.html): búsqueda operativa por placa
-- [guard/register-resident.html](./guard/register-resident.html): alta de residentes desde portería
-- [guard/register-visitor.html](./guard/register-visitor.html): alta de visitantes desde portería
-- [admin/index.html](./admin/index.html): listado administrativo de residentes
-- [admin/visitors.html](./admin/visitors.html): listado administrativo de visitantes
-- [admin/dashboard.html](./admin/dashboard.html): métricas operativas
-- [admin/requests.html](./admin/requests.html): solicitudes, incidencias y novedades
-- [admin/guards.html](./admin/guards.html): gestión de cuentas de guardas
-- [history/index.html](./history/index.html): historial operativo con tabs de residentes y visitantes
-- [orders/index.html](./orders/index.html): pedidos de portería
-- [settings/index.html](./settings/index.html): tema y credenciales propias
-
-## Arquitectura por capas
-
-La carpeta [js/README.md](./js/README.md) documenta la arquitectura completa. Resumen:
-
-- `config/`: configuración de despliegue
-- `core/`: utilidades base, rutas, tema, storage, cliente Supabase
-- `data/`: repositorios y acceso directo a tablas/RPC
-- `services/`: reglas de negocio y orquestación
-- `pages/`: controladores de cada vista HTML
-- `ui/`: topbar, modales, notificaciones y render helpers
-
-## Estructura del proyecto
-
-```text
-admin/
-assets/
-guard/
-history/
-js/
-orders/
-settings/
-sql/
-styles/
-index.html
-README.md
+```bash
+npx serve .
 ```
 
-### Documentación por carpeta
+Para probar contra Supabase en local hace falta la función de `api/`, lo más
+simple es correr `npx vercel dev` en su lugar.
 
-- [admin/README.md](./admin/README.md)
-- [assets/README.md](./assets/README.md)
-- [guard/README.md](./guard/README.md)
-- [history/README.md](./history/README.md)
-- [js/README.md](./js/README.md)
-- [orders/README.md](./orders/README.md)
-- [settings/README.md](./settings/README.md)
-- [sql/README.md](./sql/README.md)
-- [styles/README.md](./styles/README.md)
+## Desplegar
 
-## Base de datos actual
-
-La documentación de base de datos quedó aquí:
-
-- [sql/README.md](./sql/README.md)
-- [sql/README_MIGRACION_PORTERIA.md](./sql/README_MIGRACION_PORTERIA.md)
-- [sql/ESQUEMA_ACTUAL.md](./sql/ESQUEMA_ACTUAL.md)
-- [sql/01_porteria_fase1_estructura.sql](./sql/01_porteria_fase1_estructura.sql)
-- [sql/02_porteria_fase1_validacion.sql](./sql/02_porteria_fase1_validacion.sql)
-
-Importante:
-
-- en este workspace **no existe** un `parking_schema.sql` maestro confiable
-- el estado actual se documenta como **esquema referencial reconstruido**
-- la app ya quedó migrada con la fase incremental ejecutada en Supabase
-
-## Integración con Supabase
-
-La configuración de frontend vive en [js/config/runtime-config.js](./js/config/runtime-config.js).
-
-Valores actuales:
-
-- `SUPABASE_URL`: `https://iptyxsewwcyoatuiigma.supabase.co`
-- `SUPABASE_ANON_KEY`: configurada en runtime
-
-Notas:
-
-- la `anon key` sí puede vivir en frontend
-- la `service_role key` nunca debe ir al navegador
-- la gestión de guardas depende de RPC SQL privilegiadas
-- los administradores se crean por SQL manual, no desde la app
-
-## WhatsApp
-
-El envío es siempre manual desde la app de WhatsApp del dispositivo del operador:
-
-- los botones de WhatsApp abren `https://wa.me/<numero>?text=<mensaje>`
-- la app deja registrada la acción en `contact_action_logs` para trazabilidad
-- el mensaje canned se controla desde [js/services/contact.service.js](./js/services/contact.service.js)
-
-## Cómo probar la app
-
-### 1. Flujo de autenticación
-
-- iniciar sesión como admin
-- iniciar sesión como guarda
-- probar recuperación de contraseña
-- validar persistencia de sesión del guarda
-
-### 2. Flujo de residentes
-
-- registrar residente nuevo
-- agregar varios teléfonos
-- validar que el primer teléfono quede principal si no existía uno
-- editar residente y cambiar el principal
-- registrar ingreso y salida
-- registrar salida sin ingreso y validar alerta
-
-### 3. Flujo de visitantes
-
-- registrar visitante nuevo
-- anunciar visitante
-- registrar ingreso con anuncio previo
-- registrar ingreso sin usar el botón anunciar
-- registrar salida
-- marcar `no ingresó`
-- editar histórico
-- eliminar histórico
-
-### 4. Flujo de contactos
-
-- abrir llamada desde residente
-- abrir WhatsApp desde residente
-- abrir llamada desde visitante
-- abrir WhatsApp desde visitante
-- verificar alerta si el apartamento no tiene número principal
-
-### 5. Flujo de pedidos
-
-- crear pedido
-- llamar al apartamento
-- abrir WhatsApp manual
-- marcar pedido como notificado
-- marcar pedido como entregado
-- editar y eliminar pedido
-
-### 6. Flujo administrativo
-
-- filtrar residentes
-- filtrar visitantes
-- revisar solicitudes
-- aprobar, rechazar y eliminar solicitudes
-- crear y editar guardas
-- resetear contraseña de guarda
-
-### 7. Historial y dashboard
-
-- abrir `Historial > Residentes`
-- abrir `Historial > Visitantes`
-- usar filtros por placa, apartamento, torre, estado y fechas
-- revisar dashboard con distintos rangos
-
-## Despliegue
-
-### Frontend
-
-Se despliega como sitio estático. Puedes usar Vercel directamente.
-
-### Backend
-
-Depende de:
-
-- Supabase Auth
-- Supabase Database
-- RLS
-- RPC SQL
-
-## Observaciones operativas
-
-- la aplicación usa `storage` por rol para diferenciar persistencia de sesión
-- el número principal es una política por apartamento, no por residente
-- los históricos usan snapshots para preservar el contexto del momento
-- las llamadas y acciones de WhatsApp manual se registran en base de datos
-
-## Recomendación de uso documental
-
-Si vas a tocar algo del sistema, sigue este orden:
-
-1. lee este README
-2. revisa el README de la carpeta afectada
-3. revisa [sql/ESQUEMA_ACTUAL.md](./sql/ESQUEMA_ACTUAL.md) si el cambio toca datos
+1. Importa el repositorio en Vercel (sitio estático, sin build step; `api/`
+   se detecta automáticamente como función serverless).
+2. Agrega `SUPABASE_URL` y `SUPABASE_ANON_KEY` en Environment Variables.
+3. Ejecuta el esquema SQL de [`sql/`](sql/) en el SQL Editor de tu proyecto de
+   Supabase.
